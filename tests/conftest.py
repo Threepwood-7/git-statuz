@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import os
 import subprocess
 from typing import TYPE_CHECKING
 
+import pytest
+from PySide6.QtCore import QSettings
+
 if TYPE_CHECKING:
     from pathlib import Path
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 
 def run_git(repo_path: Path, *args: str) -> str:
@@ -35,3 +41,14 @@ def commit_file(repo_path: Path, relpath: str, content: str, message: str) -> No
     run_git(repo_path, "add", relpath)
     run_git(repo_path, "commit", "-m", message)
 
+
+@pytest.fixture
+def window(qtbot, tmp_path: Path, monkeypatch):
+    from git_statuz.ui.main_window import MainWindow
+
+    monkeypatch.setattr(MainWindow, "refresh", lambda self: None)
+    monkeypatch.setattr(MainWindow, "_request_repo_diff", lambda self: None)
+    settings = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
+    win = MainWindow(str(tmp_path), settings=settings)
+    qtbot.addWidget(win)
+    return win

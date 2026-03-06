@@ -38,6 +38,13 @@ from ..models import CommitEntry, FileStatus, HistoryContext, RepoSnapshot
 from ..services.diff_launcher import DiffLauncher
 from .diff_highlighter import GitDiffHighlighter
 from .history_model import HistoryTableModel
+from .recent_paths import (
+    MAX_RECENT_PATHS,
+    SETTINGS_RECENT_PATHS_KEY,
+    drop_recent_path,
+    load_recent_paths,
+    update_recent_paths,
+)
 from .tree_model import build_tree_model, index_node_type, index_repo_relpath
 
 if TYPE_CHECKING:
@@ -49,8 +56,6 @@ SETTINGS_MAIN_SPLITTER_SIZES_KEY = "ui/main_splitter_sizes"
 SETTINGS_RIGHT_SPLITTER_SIZES_KEY = "ui/right_splitter_sizes"
 SETTINGS_SHOW_UNTRACKED_KEY = "ui/show_untracked"
 SETTINGS_SHOW_IGNORED_KEY = "ui/show_ignored"
-SETTINGS_RECENT_PATHS_KEY = "recent/paths"
-MAX_RECENT_PATHS = 10
 PREVIEW_MAX_CHARS = 512 * 1024
 
 
@@ -73,16 +78,6 @@ def _coerce_width_list(raw_value: object, expected_count: int, defaults: list[in
     if len(values) != expected_count:
         return defaults[:]
     return values
-
-
-def update_recent_paths(paths: list[str], new_path: str, limit: int = MAX_RECENT_PATHS) -> list[str]:
-    normalized_new = str(Path(new_path).resolve())
-    deduped = [normalized_new]
-    for existing in paths:
-        normalized_existing = str(Path(existing).resolve())
-        if normalized_existing not in deduped:
-            deduped.append(normalized_existing)
-    return deduped[:limit]
 
 
 def _coerce_bool(raw_value: object, default: bool) -> bool:
@@ -149,7 +144,10 @@ class MainWindow(QMainWindow):
         self._history_limit = history_limit
         self._winmerge_path = winmerge_path
         self._settings = settings or QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, "gitstatuz", "gitstatuz")
-        self._recent_paths = self._load_recent_paths()
+        self._recent_paths = load_recent_paths(
+            self._settings.value(SETTINGS_RECENT_PATHS_KEY, []),
+            limit=MAX_RECENT_PATHS,
+        )
         self._show_untracked = _coerce_bool(self._settings.value(SETTINGS_SHOW_UNTRACKED_KEY, True), True)
         self._show_ignored = _coerce_bool(self._settings.value(SETTINGS_SHOW_IGNORED_KEY, True), True)
         self._thread_pool = QThreadPool.globalInstance()
@@ -624,26 +622,6 @@ class MainWindow(QMainWindow):
             return False
         return True
 
-    def _load_recent_paths(self) -> list[str]:
-        raw_value = self._settings.value(SETTINGS_RECENT_PATHS_KEY, [])
-        if isinstance(raw_value, str):
-            raw_paths = [raw_value] if raw_value else []
-        elif isinstance(raw_value, list):
-            raw_paths: list[str] = []
-            for item in cast("list[object]", raw_value):
-                as_text = str(item)
-                if as_text:
-                    raw_paths.append(as_text)
-        else:
-            raw_paths = []
-
-        unique_paths: list[str] = []
-        for item in raw_paths:
-            normalized = str(Path(item).resolve())
-            if normalized not in unique_paths:
-                unique_paths.append(normalized)
-        return unique_paths[:MAX_RECENT_PATHS]
-
     def _push_recent_path(self, path: str) -> None:
         self._recent_paths = update_recent_paths(self._recent_paths, path, limit=MAX_RECENT_PATHS)
         self._settings.setValue(SETTINGS_RECENT_PATHS_KEY, self._recent_paths)
@@ -651,8 +629,7 @@ class MainWindow(QMainWindow):
             self._rebuild_recent_menu()
 
     def _drop_recent_path(self, path: str) -> None:
-        normalized = str(Path(path).resolve())
-        self._recent_paths = [entry for entry in self._recent_paths if entry != normalized]
+        self._recent_paths = drop_recent_path(self._recent_paths, path)
         self._settings.setValue(SETTINGS_RECENT_PATHS_KEY, self._recent_paths)
         self._rebuild_recent_menu()
 
