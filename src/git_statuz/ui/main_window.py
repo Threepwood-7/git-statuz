@@ -132,10 +132,10 @@ class _FunctionWorker(QRunnable):
 
 
 class MainWindow(QMainWindow):
-    refreshRequested = Signal()
-    fileSelected = Signal(str)
-    fileActivated = Signal(str)
-    historyContextChanged = Signal(str)
+    refresh_requested = Signal()
+    file_selected = Signal(str)
+    file_activated = Signal(str)
+    history_context_changed = Signal(str)
 
     def __init__(
         self,
@@ -169,7 +169,7 @@ class MainWindow(QMainWindow):
         self._build_ui()
         self._bind_events()
         self._push_recent_path(str(self.repo_root))
-        self.refreshRequested.emit()
+        self.refresh_requested.emit()
 
     def _build_ui(self) -> None:
         self.setWindowTitle("GitStatuz")
@@ -282,9 +282,9 @@ class MainWindow(QMainWindow):
         self._set_diff_text("Select a file to view diff or content.")
 
     def _bind_events(self) -> None:
-        self.refresh_button.clicked.connect(self.refreshRequested.emit)
+        self.refresh_button.clicked.connect(self.refresh_requested.emit)
         refresh_shortcut = QShortcut(QKeySequence("F5"), self)
-        refresh_shortcut.activated.connect(self.refreshRequested.emit)
+        refresh_shortcut.activated.connect(self.refresh_requested.emit)
         self.tree_view.doubleClicked.connect(self._handle_tree_double_clicked)
         self.expand_1_button.clicked.connect(lambda: self._adjust_tree_depth(1))
         self.expand_2_button.clicked.connect(lambda: self._adjust_tree_depth(2))
@@ -299,9 +299,9 @@ class MainWindow(QMainWindow):
         if self._right_splitter is not None:
             self._right_splitter.splitterMoved.connect(self._save_splitter_sizes)
 
-        self.refreshRequested.connect(self.refresh)
-        self.fileSelected.connect(self._handle_file_selected)
-        self.fileActivated.connect(self._handle_file_activated)
+        self.refresh_requested.connect(self.refresh)
+        self.file_selected.connect(self._handle_file_selected)
+        self.file_activated.connect(self._handle_file_activated)
 
     def _start_worker(
         self,
@@ -356,7 +356,7 @@ class MainWindow(QMainWindow):
         self._snapshot = result
         self._file_status_by_path = {status.repo_relpath: status for status in result.file_statuses}
         self._history_context = "repo"
-        self.historyContextChanged.emit("repo")
+        self.history_context_changed.emit("repo")
 
         self.branch_label.setText(
             "branch: "
@@ -443,7 +443,7 @@ class MainWindow(QMainWindow):
         self._rebuild_tree_model()
         if not self.tree_view.currentIndex().isValid():
             self._history_context = "repo"
-            self.historyContextChanged.emit("repo")
+            self.history_context_changed.emit("repo")
             self._show_repo_history()
             self._request_repo_diff()
 
@@ -455,7 +455,7 @@ class MainWindow(QMainWindow):
         node_type = index_node_type(first_col)
         if node_type != "file":
             self._history_context = "repo"
-            self.historyContextChanged.emit("repo")
+            self.history_context_changed.emit("repo")
             self._show_repo_history()
             self._request_repo_diff()
             return
@@ -463,7 +463,7 @@ class MainWindow(QMainWindow):
         repo_relpath = index_repo_relpath(first_col)
         if not repo_relpath:
             return
-        self.fileSelected.emit(repo_relpath)
+        self.file_selected.emit(repo_relpath)
 
     def _handle_tree_double_clicked(self, index: QModelIndex) -> None:
         node_type = index_node_type(index)
@@ -471,7 +471,7 @@ class MainWindow(QMainWindow):
             return
         repo_relpath = index_repo_relpath(index)
         if repo_relpath:
-            self.fileActivated.emit(repo_relpath)
+            self.file_activated.emit(repo_relpath)
 
     def _handle_file_selected(self, repo_relpath: str) -> None:
         file_status = self._file_status_by_path.get(repo_relpath)
@@ -479,7 +479,7 @@ class MainWindow(QMainWindow):
             return
 
         self._history_context = f"file:{repo_relpath}"
-        self.historyContextChanged.emit(self._history_context)
+        self.history_context_changed.emit(self._history_context)
 
         if file_status.is_untracked:
             self._pending_diff_token += 1
@@ -769,4 +769,3 @@ class MainWindow(QMainWindow):
         self._settings.setValue(SETTINGS_SHOW_IGNORED_KEY, self._show_ignored)
         self._settings.sync()
         super().closeEvent(event)
-
