@@ -2,6 +2,26 @@
 
 PySide viewer for Git status and history.
 
+## UI Walkthrough
+
+1. Open a repository and review the status snapshot.
+
+   ![Review repository snapshot](docs/images/ui-01-overview.png)
+
+   Overview of changed files, branch context, and current repository health.
+
+2. Inspect a selected file with commit history and diff details.
+
+   ![Inspect history and diff](docs/images/ui-02-workflow.png)
+
+   Workflow state for drilling into a file's evolution before acting.
+
+3. Apply filters to triage noisy change sets.
+
+   ![Apply triage filters](docs/images/ui-03-details.png)
+
+   Focused view for prioritizing actionable files and reducing review noise.
+
 ## Development (uv + Hatch)
 
 This project uses `uv` for environment/dependency management and command execution, and `Hatch` for builds.
