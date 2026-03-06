@@ -1,4 +1,4 @@
-_commit: v1.4.0
+﻿_commit: v1.6.0
 _src_path: C:/prj/p2p/ongithub/aatemplate
 project_name: git-statuz
 package_name: git_statuz
@@ -9,3 +9,4 @@ github_username: Threepwood-7
 project_version: 0.1.0
 runtime_dependencies:
 - PySide6>=6.10.2
+
