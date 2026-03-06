@@ -123,8 +123,13 @@ git-statuz -i D:\repos\myproject --winmerge "C:\Program Files\WinMerge\WinMergeU
 
 Runtime settings are stored via QSettings:
 
-- Backend: `QSettings(IniFormat, UserScope, "gitstatuz", "gitstatuz")`
-- No config files or environment variables required.
+- Backend: `QSettings(IniFormat, UserScope, "ThreepSoftwz", "git_statuz")`
+- Default INI path: `%APPDATA%\ThreepSoftwz\git_statuz.ini`
+- Runtime data root: `%LOCALAPPDATA%\ThreepSoftwz\git_statuz\`
+- OV01 overrides:
+  - `CONFIG_DIR` or `--config-dir` for INI root
+  - `DATA_DIR` or `--data-dir` for runtime data root
+  - Precedence: CLI > env > default
 
 ### Persisted Settings
 
@@ -136,7 +141,7 @@ Runtime settings are stored via QSettings:
 | `ui/right_splitter_sizes` | Right panel splitter proportions |
 | `ui/show_untracked` | Toggle for untracked files visibility |
 | `ui/show_ignored` | Toggle for ignored files visibility |
-| `recent/paths` | List of recently opened repository paths (max 10) |
+| `prefs/recent_paths` | List of recently opened repository paths (max 10) |
 
 ## Keyboard Shortcuts
 

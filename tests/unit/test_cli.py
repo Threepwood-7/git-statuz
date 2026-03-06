@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from git_statuz.cli import main, resolve_input_repo
+from git_statuz.cli import build_parser, main, resolve_input_repo
 from git_statuz.git_adapter import GitCommandError
 from tests.conftest import commit_file, init_repo
 
@@ -34,3 +34,10 @@ def test_main_exits_nonzero_for_invalid_repo(tmp_path: Path) -> None:
     with pytest.raises(SystemExit) as exc_info:
         main(["-i", str(tmp_path / "not-a-repo")])
     assert exc_info.value.code == 2
+
+
+def test_build_parser_accepts_ov01_override_flags() -> None:
+    parser = build_parser()
+    parsed = parser.parse_args(["--config-dir", "C:/cfg", "--data-dir", "C:/data"])
+    assert parsed.config_dir == "C:/cfg"
+    assert parsed.data_dir == "C:/data"

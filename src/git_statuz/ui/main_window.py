@@ -35,6 +35,7 @@ from PySide6.QtWidgets import (
 
 from ..git_adapter import GitAdapter, GitCommandError, resolve_repo_root
 from ..models import CommitEntry, FileStatus, HistoryContext, RepoSnapshot
+from ..runtime_paths import SETTINGS_APP_NAME, SETTINGS_ORG_NAME
 from ..services.diff_launcher import DiffLauncher
 from .diff_highlighter import GitDiffHighlighter
 from .history_model import HistoryTableModel
@@ -143,7 +144,12 @@ class MainWindow(QMainWindow):
         self.repo_root = Path(repo_root)
         self._history_limit = history_limit
         self._winmerge_path = winmerge_path
-        self._settings = settings or QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, "gitstatuz", "gitstatuz")
+        self._settings = settings or QSettings(
+            QSettings.Format.IniFormat,
+            QSettings.Scope.UserScope,
+            SETTINGS_ORG_NAME,
+            SETTINGS_APP_NAME,
+        )
         self._recent_paths = load_recent_paths(
             self._settings.value(SETTINGS_RECENT_PATHS_KEY, []),
             limit=MAX_RECENT_PATHS,

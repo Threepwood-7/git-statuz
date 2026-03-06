@@ -4,10 +4,15 @@ import argparse
 import os
 import sys
 
-from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import QApplication
 
 from .git_adapter import GitCommandError, resolve_repo_root
+from .runtime_paths import (
+    SETTINGS_APP_NAME,
+    SETTINGS_ORG_NAME,
+    configure_qsettings,
+    resolve_app_data_dir,
+)
 from .ui.main_window import MainWindow
 
 
@@ -36,6 +41,18 @@ def build_parser() -> argparse.ArgumentParser:
         default=30,
         help="History rows to load for repo and file views (default: 30).",
     )
+    parser.add_argument(
+        "--config-dir",
+        dest="config_dir",
+        default=None,
+        help="Override QSettings INI root directory (also via CONFIG_DIR).",
+    )
+    parser.add_argument(
+        "--data-dir",
+        dest="data_dir",
+        default=None,
+        help="Override runtime data root directory (also via DATA_DIR).",
+    )
     return parser
 
 
@@ -53,10 +70,14 @@ def main(argv: list[str] | None = None) -> int:
     except GitCommandError as exc:
         parser.exit(status=2, message=f"error: {exc}\n")
 
-    QSettings.setDefaultFormat(QSettings.Format.IniFormat)
+    configure_qsettings(args.config_dir)
+    if args.data_dir:
+        os.environ["DATA_DIR"] = args.data_dir
+    resolve_app_data_dir(args.data_dir)
+
     app = QApplication.instance() or QApplication(sys.argv[:1])
-    app.setOrganizationName("gitstatuz")
-    app.setApplicationName("gitstatuz")
+    app.setOrganizationName(SETTINGS_ORG_NAME)
+    app.setApplicationName(SETTINGS_APP_NAME)
     window = MainWindow(
         repo_root=repo_root,
         winmerge_path=args.winmerge_path,

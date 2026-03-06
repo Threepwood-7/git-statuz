@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import cast
 
-SETTINGS_RECENT_PATHS_KEY = "recent/paths"
+SETTINGS_RECENT_PATHS_KEY = "prefs/recent_paths"
 MAX_RECENT_PATHS = 10
 
 
