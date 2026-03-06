@@ -24,9 +24,9 @@ uv lock
 - CI uses locked installs: `uv sync --locked --group dev`.
 - Build job runs on Python `3.12` and uploads `dist/*` artifacts.
 
-## Nox policy
+## Tooling policy
 
-Nox is intentionally not used in this project.
+Use the `uv` + `Hatch` commands above for both local development and CI parity.
 
 ---
 
