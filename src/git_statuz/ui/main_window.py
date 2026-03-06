@@ -14,7 +14,7 @@ from PySide6.QtCore import (
     QThreadPool,
     Signal,
 )
-from PySide6.QtGui import QCloseEvent, QFont, QKeySequence, QShortcut
+from PySide6.QtGui import QCloseEvent, QFont, QKeySequence
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -280,15 +280,15 @@ class MainWindow(QMainWindow):
         root_layout.addWidget(splitter, stretch=1)
 
         self.setCentralWidget(root_widget)
-        self._build_files_menu()
+        self._build_file_menu()
+        self._build_view_menu()
+        self._build_help_menu()
         self._restore_history_column_widths()
         self._restore_splitter_sizes()
         self._set_diff_text("Select a file to view diff or content.")
 
     def _bind_events(self) -> None:
         self.refresh_button.clicked.connect(self.refresh_requested.emit)
-        refresh_shortcut = QShortcut(QKeySequence("F5"), self)
-        refresh_shortcut.activated.connect(self.refresh_requested.emit)
         self.tree_view.doubleClicked.connect(self._handle_tree_double_clicked)
         self.expand_1_button.clicked.connect(lambda: self._adjust_tree_depth(1))
         self.expand_2_button.clicked.connect(lambda: self._adjust_tree_depth(2))
@@ -589,17 +589,40 @@ class MainWindow(QMainWindow):
         self._set_diff_text("Failed to load diff.")
         QMessageBox.warning(self, "GitStatuz diff error", message)
 
-    def _build_files_menu(self) -> None:
-        files_menu = self.menuBar().addMenu("Files")
-        open_action = files_menu.addAction("Open Directory...")
+    def _build_file_menu(self) -> None:
+        file_menu = self.menuBar().addMenu("&File")
+        open_action = file_menu.addAction("&Open Directory...")
         open_action.triggered.connect(self._prompt_open_directory_new_instance)
-        self._recent_menu = files_menu.addMenu("Recents")
+        self._recent_menu = file_menu.addMenu("Re&cents")
         self._rebuild_recent_menu()
-        files_menu.addSeparator()
-        exit_action = files_menu.addAction("E&xit")
-        exit_action.setShortcut(QKeySequence("Alt+X"))
+        file_menu.addSeparator()
+        exit_action = file_menu.addAction("E&xit")
+        exit_action.setShortcuts([QKeySequence("Ctrl+Q"), QKeySequence("Alt+X")])
         exit_action.setShortcutContext(Qt.ShortcutContext.ApplicationShortcut)
         exit_action.triggered.connect(self.close)
+
+    def _build_view_menu(self) -> None:
+        view_menu = self.menuBar().addMenu("&View")
+        refresh_action = view_menu.addAction("&Refresh")
+        refresh_action.setShortcut(QKeySequence("F5"))
+        refresh_action.setShortcutContext(Qt.ShortcutContext.ApplicationShortcut)
+        refresh_action.triggered.connect(self.refresh_requested.emit)
+
+    def _build_help_menu(self) -> None:
+        help_menu = self.menuBar().addMenu("&Help")
+        help_action = help_menu.addAction("&Help")
+        help_action.setShortcut(QKeySequence("F1"))
+        help_action.setShortcutContext(Qt.ShortcutContext.ApplicationShortcut)
+        help_action.triggered.connect(self._show_help)
+
+    def _show_help(self) -> None:
+        QMessageBox.information(
+            self,
+            "Help",
+            "Keyboard shortcuts:\n"
+            "F5: Refresh repository snapshot and diffs\n"
+            "Ctrl+Q / Alt+X: Exit application",
+        )
 
     def _prompt_open_directory_new_instance(self) -> None:
         start_dir = str(self.repo_root)
@@ -642,12 +665,12 @@ class MainWindow(QMainWindow):
     def _rebuild_recent_menu(self) -> None:
         self._recent_menu.clear()
         if not self._recent_paths:
-            empty_action = self._recent_menu.addAction("No recent directories")
+            empty_action = self._recent_menu.addAction("N&o recent directories")
             empty_action.setEnabled(False)
             return
 
         for path in self._recent_paths:
-            action = self._recent_menu.addAction(path)
+            action = self._recent_menu.addAction(path.replace("&", "&&"))
             action.setToolTip(path)
             action.triggered.connect(lambda checked=False, selected=path: self._open_recent_in_new_instance(selected))
 

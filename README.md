@@ -148,14 +148,21 @@ Runtime settings are stored via QSettings:
 | Key | Action |
 |---|---|
 | F5 | Refresh repository snapshot and diffs |
-| Alt+X | Exit application |
+| Ctrl+Q / Alt+X | Exit application |
+| F1 | Show help |
 
 ## Menus
 
-**Files**:
+**File**:
 - **Open Directory...** - Browse and open a git repository in a new instance
 - **Recents** - Submenu with up to 10 recently opened repository paths
-- **Exit** (Alt+X)
+- **Exit** (Ctrl+Q, Alt+X)
+
+**View**:
+- **Refresh** (F5)
+
+**Help**:
+- **Help** (F1)
 
 ## Project Structure
 

@@ -30,6 +30,51 @@ def test_repo_history_limit_30(tmp_path: Path) -> None:
     assert len(history) == 30
 
 
+def test_menu_bar_includes_core_file_view_help_actions(qtbot, tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(MainWindow, "refresh", lambda self: None)
+    settings = QSettings(str(tmp_path / "window.ini"), QSettings.Format.IniFormat)
+    window = MainWindow(str(tmp_path), settings=settings)
+    qtbot.addWidget(window)
+
+    menus = {action.text(): action for action in window.menuBar().actions()}
+    assert "&File" in menus
+    assert "&View" in menus
+    assert "&Help" in menus
+
+    file_menu = menus["&File"].menu()
+    assert file_menu is not None
+    exit_action = next((action for action in file_menu.actions() if action.text() == "E&xit"), None)
+    assert exit_action is not None
+    exit_shortcuts = {shortcut.toString() for shortcut in exit_action.shortcuts()}
+    assert {"Ctrl+Q", "Alt+X"} <= exit_shortcuts
+    assert any(action.text() == "&Open Directory..." for action in file_menu.actions())
+    assert any(action.text() == "Re&cents" for action in file_menu.actions())
+
+    view_menu = menus["&View"].menu()
+    assert view_menu is not None
+    refresh_action = next((action for action in view_menu.actions() if action.text() == "&Refresh"), None)
+    assert refresh_action is not None
+    assert refresh_action.shortcut().toString().lower().replace(" ", "") == "f5"
+
+    help_menu = menus["&Help"].menu()
+    assert help_menu is not None
+    help_action = next((action for action in help_menu.actions() if action.text() == "&Help"), None)
+    assert help_action is not None
+    assert help_action.shortcut().toString().lower().replace(" ", "") == "f1"
+
+
+def test_recent_paths_escape_ampersand_in_menu_labels(qtbot, tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(MainWindow, "refresh", lambda self: None)
+    settings = QSettings(str(tmp_path / "window.ini"), QSettings.Format.IniFormat)
+    window = MainWindow(str(tmp_path), settings=settings)
+    qtbot.addWidget(window)
+
+    window._recent_paths = [r"C:\repos\R&D"]
+    window._rebuild_recent_menu()
+    recent_actions = [action.text() for action in window._recent_menu.actions()]
+    assert r"C:\repos\R&&D" in recent_actions
+
+
 def test_main_window_switches_history_by_file_selection(qtbot, tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(MainWindow, "refresh", lambda self: None)
     settings = QSettings(str(tmp_path / "window.ini"), QSettings.Format.IniFormat)
