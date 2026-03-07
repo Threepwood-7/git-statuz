@@ -21,7 +21,9 @@ def resolve_repo_root(path: str | Path) -> str:
     )
     if proc.returncode != 0:
         stderr = proc.stderr.decode("utf-8", "replace").strip()
-        raise GitCommandError(stderr or f"Unable to resolve git repository root for: {path_str}")
+        raise GitCommandError(
+            stderr or f"Unable to resolve git repository root for: {path_str}"
+        )
     return proc.stdout.decode("utf-8", "replace").strip()
 
 
@@ -40,7 +42,9 @@ def _is_conflicted_xy(xy: str) -> bool:
     return "U" in xy or xy in conflict_pairs
 
 
-def _make_tracked_file_status(repo_relpath: str, xy: str, renamed: bool = False, conflicted: bool = False) -> FileStatus:
+def _make_tracked_file_status(
+    repo_relpath: str, xy: str, renamed: bool = False, conflicted: bool = False
+) -> FileStatus:
     merged_conflicted = conflicted or _is_conflicted_xy(xy)
     return FileStatus(
         repo_relpath=repo_relpath,
@@ -181,7 +185,9 @@ def parse_commit_log(payload: str) -> list[CommitEntry]:
     return commits
 
 
-def _compose_diff_output(unstaged_patch: str, staged_patch: str, empty_message: str) -> str:
+def _compose_diff_output(
+    unstaged_patch: str, staged_patch: str, empty_message: str
+) -> str:
     sections: list[str] = []
     if unstaged_patch.strip():
         sections.append(f"### Working Tree (unstaged)\n{unstaged_patch.rstrip()}")
@@ -197,7 +203,9 @@ class GitAdapter:
         self.repo_root = repo_root
         self.history_limit = history_limit
 
-    def _working_tree_last_modified_sql_timestamp(self, repo_relpath: str) -> str | None:
+    def _working_tree_last_modified_sql_timestamp(
+        self, repo_relpath: str
+    ) -> str | None:
         file_path = Path(self.repo_root) / repo_relpath
         if not file_path.is_file():
             return None
@@ -224,7 +232,9 @@ class GitAdapter:
         )
         if check and proc.returncode != 0:
             stderr = proc.stderr if text else proc.stderr.decode("utf-8", "replace")
-            raise GitCommandError(stderr.strip() or f"git command failed: {' '.join(args)}")
+            raise GitCommandError(
+                stderr.strip() or f"git command failed: {' '.join(args)}"
+            )
         return proc
 
     def has_head(self) -> bool:
@@ -255,13 +265,20 @@ class GitAdapter:
                 is_renamed=False,
             )
         file_statuses = [
-            replace(item, last_modified_iso=self._working_tree_last_modified_sql_timestamp(item.repo_relpath))
+            replace(
+                item,
+                last_modified_iso=self._working_tree_last_modified_sql_timestamp(
+                    item.repo_relpath
+                ),
+            )
             for item in status_by_path.values()
         ]
 
         counts = StatusCounts(
             staged=sum(1 for f in file_statuses if f.is_staged and not f.is_conflicted),
-            unstaged=sum(1 for f in file_statuses if f.is_unstaged and not f.is_conflicted),
+            unstaged=sum(
+                1 for f in file_statuses if f.is_unstaged and not f.is_conflicted
+            ),
             untracked=sum(1 for f in file_statuses if f.is_untracked),
             conflicted=sum(1 for f in file_statuses if f.is_conflicted),
             ignored=sum(1 for f in file_statuses if f.is_ignored),
@@ -280,7 +297,11 @@ class GitAdapter:
     def load_tracked_paths(self) -> list[str]:
         proc = self._run_git(["ls-files", "-z"], text=False)
         assert isinstance(proc.stdout, bytes)
-        return [segment.decode("utf-8", "surrogateescape") for segment in proc.stdout.split(b"\x00") if segment]
+        return [
+            segment.decode("utf-8", "surrogateescape")
+            for segment in proc.stdout.split(b"\x00")
+            if segment
+        ]
 
     def load_repo_history(self) -> list[CommitEntry]:
         proc = self._run_git(
@@ -326,7 +347,9 @@ class GitAdapter:
 
     def load_repo_diff(self) -> str:
         has_head = self.has_head()
-        unstaged_proc = self._run_git(["diff", "--patch", "--no-color"], text=True, check=False)
+        unstaged_proc = self._run_git(
+            ["diff", "--patch", "--no-color"], text=True, check=False
+        )
         staged_args = ["diff", "--cached", "--patch", "--no-color"]
         if not has_head:
             staged_args.insert(1, "--root")
@@ -359,7 +382,9 @@ class GitAdapter:
             empty_message="No diff for selected file.",
         )
 
-    def load_working_file_text(self, repo_relpath: str, max_preview_chars: int = 512 * 1024) -> str:
+    def load_working_file_text(
+        self, repo_relpath: str, max_preview_chars: int = 512 * 1024
+    ) -> str:
         file_path = Path(self.repo_root) / repo_relpath
         if not file_path.exists():
             return "File does not exist in working tree."

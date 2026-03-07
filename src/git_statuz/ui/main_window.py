@@ -33,9 +33,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ..constants import SETTINGS_APP_NAME, SETTINGS_ORG_NAME
 from ..git_adapter import GitAdapter, GitCommandError, resolve_repo_root
 from ..models import CommitEntry, FileStatus, HistoryContext, RepoSnapshot
-from ..runtime_paths import SETTINGS_APP_NAME, SETTINGS_ORG_NAME
 from ..services.diff_launcher import DiffLauncher
 from .diff_highlighter import GitDiffHighlighter
 from .history_model import HistoryTableModel
@@ -60,7 +60,9 @@ SETTINGS_SHOW_IGNORED_KEY = "ui/show_ignored"
 PREVIEW_MAX_CHARS = 512 * 1024
 
 
-def _coerce_width_list(raw_value: object, expected_count: int, defaults: list[int]) -> list[int]:
+def _coerce_width_list(
+    raw_value: object, expected_count: int, defaults: list[int]
+) -> list[int]:
     values: list[int] = []
     source: list[str]
     if isinstance(raw_value, list):
@@ -154,11 +156,17 @@ class MainWindow(QMainWindow):
             self._settings.value(SETTINGS_RECENT_PATHS_KEY, []),
             limit=MAX_RECENT_PATHS,
         )
-        self._show_untracked = _coerce_bool(self._settings.value(SETTINGS_SHOW_UNTRACKED_KEY, True), True)
-        self._show_ignored = _coerce_bool(self._settings.value(SETTINGS_SHOW_IGNORED_KEY, True), True)
+        self._show_untracked = _coerce_bool(
+            self._settings.value(SETTINGS_SHOW_UNTRACKED_KEY, True), True
+        )
+        self._show_ignored = _coerce_bool(
+            self._settings.value(SETTINGS_SHOW_IGNORED_KEY, True), True
+        )
         self._thread_pool = QThreadPool.globalInstance()
         self._git_adapter = GitAdapter(str(self.repo_root), history_limit=history_limit)
-        self._diff_launcher = DiffLauncher(str(self.repo_root), winmerge_path=winmerge_path)
+        self._diff_launcher = DiffLauncher(
+            str(self.repo_root), winmerge_path=winmerge_path
+        )
         self._snapshot: RepoSnapshot | None = None
         self._file_status_by_path: dict[str, FileStatus] = {}
         self._active_workers: set[_FunctionWorker] = set()
@@ -207,7 +215,9 @@ class MainWindow(QMainWindow):
 
         self.repo_label = QLabel(f"repo: {self.repo_root}")
         self.branch_label = QLabel("branch: -")
-        self.counts_label = QLabel("staged 0 | unstaged 0 | untracked 0 | conflicted 0 | ignored 0")
+        self.counts_label = QLabel(
+            "staged 0 | unstaged 0 | untracked 0 | conflicted 0 | ignored 0"
+        )
         self.status_label = QLabel("Ready")
         self.status_label.setObjectName("statusLabel")
 
@@ -238,7 +248,9 @@ class MainWindow(QMainWindow):
         self.tree_view = QTreeView()
         self.tree_view.setAlternatingRowColors(True)
         self.tree_view.setUniformRowHeights(True)
-        self.tree_view.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.tree_view.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows
+        )
         self.tree_view.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.tree_view.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
@@ -246,8 +258,12 @@ class MainWindow(QMainWindow):
         self._right_splitter = right_splitter
         self.history_view = QTableView()
         self.history_view.setAlternatingRowColors(True)
-        self.history_view.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.history_view.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.history_view.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows
+        )
+        self.history_view.setSelectionMode(
+            QAbstractItemView.SelectionMode.SingleSelection
+        )
         self.history_view.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.history_view.verticalHeader().setVisible(False)
 
@@ -273,7 +289,9 @@ class MainWindow(QMainWindow):
         self.history_view.setModel(self._history_model)
         self.tree_view.header().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self.tree_view.header().setStretchLastSection(False)
-        self.history_view.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        self.history_view.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Interactive
+        )
         self.history_view.horizontalHeader().setStretchLastSection(False)
 
         root_layout.addLayout(top_bar)
@@ -294,10 +312,14 @@ class MainWindow(QMainWindow):
         self.expand_2_button.clicked.connect(lambda: self._adjust_tree_depth(2))
         self.collapse_1_button.clicked.connect(lambda: self._adjust_tree_depth(-1))
         self.collapse_2_button.clicked.connect(lambda: self._adjust_tree_depth(-2))
-        self.show_untracked_checkbox.toggled.connect(self._handle_show_untracked_toggled)
+        self.show_untracked_checkbox.toggled.connect(
+            self._handle_show_untracked_toggled
+        )
         self.show_ignored_checkbox.toggled.connect(self._handle_show_ignored_toggled)
         self.tree_view.header().sectionResized.connect(self._save_tree_column_widths)
-        self.history_view.horizontalHeader().sectionResized.connect(self._save_history_column_widths)
+        self.history_view.horizontalHeader().sectionResized.connect(
+            self._save_history_column_widths
+        )
         if self._main_splitter is not None:
             self._main_splitter.splitterMoved.connect(self._save_splitter_sizes)
         if self._right_splitter is not None:
@@ -316,7 +338,9 @@ class MainWindow(QMainWindow):
         worker = _FunctionWorker(fn)
         self._active_workers.add(worker)
 
-        def _safe_finished(result: object, current_worker: _FunctionWorker = worker) -> None:
+        def _safe_finished(
+            result: object, current_worker: _FunctionWorker = worker
+        ) -> None:
             self._active_workers.discard(current_worker)
             try:
                 on_finished(result)
@@ -324,7 +348,9 @@ class MainWindow(QMainWindow):
                 self.status_label.setText("Unexpected UI error")
                 QMessageBox.critical(self, "GitStatuz runtime error", str(exc))
 
-        def _safe_failed(message: str, current_worker: _FunctionWorker = worker) -> None:
+        def _safe_failed(
+            message: str, current_worker: _FunctionWorker = worker
+        ) -> None:
             self._active_workers.discard(current_worker)
             try:
                 on_failed(message)
@@ -358,7 +384,9 @@ class MainWindow(QMainWindow):
             self._handle_snapshot_error("Unexpected snapshot result type.")
             return
         self._snapshot = result
-        self._file_status_by_path = {status.repo_relpath: status for status in result.file_statuses}
+        self._file_status_by_path = {
+            status.repo_relpath: status for status in result.file_statuses
+        }
         self._history_context = "repo"
         self.history_context_changed.emit("repo")
 
@@ -455,7 +483,10 @@ class MainWindow(QMainWindow):
         selected_indexes = self.tree_view.selectedIndexes()
         if not selected_indexes:
             return
-        first_col = next((idx for idx in selected_indexes if idx.column() == 0), selected_indexes[0].siblingAtColumn(0))
+        first_col = next(
+            (idx for idx in selected_indexes if idx.column() == 0),
+            selected_indexes[0].siblingAtColumn(0),
+        )
         node_type = index_node_type(first_col)
         if node_type != "file":
             self._history_context = "repo"
@@ -487,7 +518,9 @@ class MainWindow(QMainWindow):
 
         if file_status.is_untracked:
             self._pending_diff_token += 1
-            self._history_model.set_empty_message("No commit history for untracked file.")
+            self._history_model.set_empty_message(
+                "No commit history for untracked file."
+            )
             self.status_label.setText(f"Loading content for {repo_relpath}...")
             self._request_file_content(repo_relpath)
             return
@@ -638,7 +671,9 @@ class MainWindow(QMainWindow):
 
             normalized = str(Path(selected).resolve())
             if not self._is_git_repo_path(normalized):
-                QMessageBox.warning(self, "Invalid repository", f"Not a git repo {normalized}")
+                QMessageBox.warning(
+                    self, "Invalid repository", f"Not a git repo {normalized}"
+                )
                 start_dir = normalized
                 continue
             self._open_recent_in_new_instance(normalized)
@@ -652,7 +687,9 @@ class MainWindow(QMainWindow):
         return True
 
     def _push_recent_path(self, path: str) -> None:
-        self._recent_paths = update_recent_paths(self._recent_paths, path, limit=MAX_RECENT_PATHS)
+        self._recent_paths = update_recent_paths(
+            self._recent_paths, path, limit=MAX_RECENT_PATHS
+        )
         self._settings.setValue(SETTINGS_RECENT_PATHS_KEY, self._recent_paths)
         if hasattr(self, "_recent_menu"):
             self._rebuild_recent_menu()
@@ -672,22 +709,39 @@ class MainWindow(QMainWindow):
         for path in self._recent_paths:
             action = self._recent_menu.addAction(path.replace("&", "&&"))
             action.setToolTip(path)
-            action.triggered.connect(lambda checked=False, selected=path: self._open_recent_in_new_instance(selected))
+            action.triggered.connect(
+                lambda checked=False, selected=path: self._open_recent_in_new_instance(
+                    selected
+                )
+            )
 
     def _open_recent_in_new_instance(self, path: str) -> None:
         normalized = str(Path(path).resolve())
         if not Path(normalized).exists():
-            QMessageBox.warning(self, "Recent directory missing", f"Directory not found:\n{normalized}")
+            QMessageBox.warning(
+                self, "Recent directory missing", f"Directory not found:\n{normalized}"
+            )
             self._drop_recent_path(normalized)
             return
 
         self._push_recent_path(normalized)
-        args = ["-m", "git_statuz", "-i", normalized, "--history-limit", str(self._history_limit)]
+        args = [
+            "-m",
+            "git_statuz",
+            "-i",
+            normalized,
+            "--history-limit",
+            str(self._history_limit),
+        ]
         if self._winmerge_path:
             args.extend(["--winmerge", self._winmerge_path])
         launched = QProcess.startDetached(sys.executable, args)
         if not launched:
-            QMessageBox.warning(self, "Launch failed", f"Could not launch new instance for:\n{normalized}")
+            QMessageBox.warning(
+                self,
+                "Launch failed",
+                f"Could not launch new instance for:\n{normalized}",
+            )
 
     def _restore_tree_column_widths(self) -> None:
         widths = _coerce_width_list(
@@ -733,9 +787,13 @@ class MainWindow(QMainWindow):
 
     def _save_splitter_sizes(self, *_args: object) -> None:
         if self._main_splitter is not None:
-            self._settings.setValue(SETTINGS_MAIN_SPLITTER_SIZES_KEY, self._main_splitter.sizes())
+            self._settings.setValue(
+                SETTINGS_MAIN_SPLITTER_SIZES_KEY, self._main_splitter.sizes()
+            )
         if self._right_splitter is not None:
-            self._settings.setValue(SETTINGS_RIGHT_SPLITTER_SIZES_KEY, self._right_splitter.sizes())
+            self._settings.setValue(
+                SETTINGS_RIGHT_SPLITTER_SIZES_KEY, self._right_splitter.sizes()
+            )
 
     def _max_tree_depth(self) -> int:
         model = self.tree_view.model()
@@ -764,10 +822,14 @@ class MainWindow(QMainWindow):
         max_depth = self._max_tree_depth()
         if max_depth < 0:
             return
-        self._tree_depth_target = max(-1, min(max_depth, self._tree_depth_target + delta))
+        self._tree_depth_target = max(
+            -1, min(max_depth, self._tree_depth_target + delta)
+        )
         self._apply_tree_depth()
 
-    def closeEvent(self, event: QCloseEvent) -> None:  # pragma: no cover - Qt event hook
+    def closeEvent(
+        self, event: QCloseEvent
+    ) -> None:  # pragma: no cover - Qt event hook
         self._save_tree_column_widths()
         self._save_history_column_widths()
         self._save_splitter_sizes()

@@ -30,7 +30,9 @@ def test_repo_history_limit_30(tmp_path: Path) -> None:
     assert len(history) == 30
 
 
-def test_menu_bar_includes_core_file_view_help_actions(qtbot, tmp_path: Path, monkeypatch) -> None:
+def test_menu_bar_includes_core_file_view_help_actions(
+    qtbot, tmp_path: Path, monkeypatch
+) -> None:
     monkeypatch.setattr(MainWindow, "refresh", lambda self: None)
     settings = QSettings(str(tmp_path / "window.ini"), QSettings.Format.IniFormat)
     window = MainWindow(str(tmp_path), settings=settings)
@@ -43,7 +45,9 @@ def test_menu_bar_includes_core_file_view_help_actions(qtbot, tmp_path: Path, mo
 
     file_menu = menus["&File"].menu()
     assert file_menu is not None
-    exit_action = next((action for action in file_menu.actions() if action.text() == "E&xit"), None)
+    exit_action = next(
+        (action for action in file_menu.actions() if action.text() == "E&xit"), None
+    )
     assert exit_action is not None
     exit_shortcuts = {shortcut.toString() for shortcut in exit_action.shortcuts()}
     assert {"Ctrl+Q", "Alt+X"} <= exit_shortcuts
@@ -52,18 +56,24 @@ def test_menu_bar_includes_core_file_view_help_actions(qtbot, tmp_path: Path, mo
 
     view_menu = menus["&View"].menu()
     assert view_menu is not None
-    refresh_action = next((action for action in view_menu.actions() if action.text() == "&Refresh"), None)
+    refresh_action = next(
+        (action for action in view_menu.actions() if action.text() == "&Refresh"), None
+    )
     assert refresh_action is not None
     assert refresh_action.shortcut().toString().lower().replace(" ", "") == "f5"
 
     help_menu = menus["&Help"].menu()
     assert help_menu is not None
-    help_action = next((action for action in help_menu.actions() if action.text() == "&Help"), None)
+    help_action = next(
+        (action for action in help_menu.actions() if action.text() == "&Help"), None
+    )
     assert help_action is not None
     assert help_action.shortcut().toString().lower().replace(" ", "") == "f1"
 
 
-def test_recent_paths_escape_ampersand_in_menu_labels(qtbot, tmp_path: Path, monkeypatch) -> None:
+def test_recent_paths_escape_ampersand_in_menu_labels(
+    qtbot, tmp_path: Path, monkeypatch
+) -> None:
     monkeypatch.setattr(MainWindow, "refresh", lambda self: None)
     settings = QSettings(str(tmp_path / "window.ini"), QSettings.Format.IniFormat)
     window = MainWindow(str(tmp_path), settings=settings)
@@ -75,7 +85,9 @@ def test_recent_paths_escape_ampersand_in_menu_labels(qtbot, tmp_path: Path, mon
     assert r"C:\repos\R&&D" in recent_actions
 
 
-def test_main_window_switches_history_by_file_selection(qtbot, tmp_path: Path, monkeypatch) -> None:
+def test_main_window_switches_history_by_file_selection(
+    qtbot, tmp_path: Path, monkeypatch
+) -> None:
     monkeypatch.setattr(MainWindow, "refresh", lambda self: None)
     settings = QSettings(str(tmp_path / "window.ini"), QSettings.Format.IniFormat)
     window = MainWindow(str(tmp_path), settings=settings)
@@ -174,7 +186,9 @@ def test_main_window_switches_history_by_file_selection(qtbot, tmp_path: Path, m
 
     window._handle_file_selected("ignored.log")
     assert window._history_context == "file:ignored.log"
-    assert "No commit history for ignored file" in window._history_model.item(0, 3).text()
+    assert (
+        "No commit history for ignored file" in window._history_model.item(0, 3).text()
+    )
     assert "IGNORED CONTENT" in window.diff_view.toPlainText()
 
     window._handle_file_selected("stable.txt")
@@ -183,7 +197,9 @@ def test_main_window_switches_history_by_file_selection(qtbot, tmp_path: Path, m
     assert "UNCHANGED CONTENT" in window.diff_view.toPlainText()
 
 
-def test_show_untracked_and_ignored_toggles_filter_tree(qtbot, tmp_path: Path, monkeypatch) -> None:
+def test_show_untracked_and_ignored_toggles_filter_tree(
+    qtbot, tmp_path: Path, monkeypatch
+) -> None:
     monkeypatch.setattr(MainWindow, "refresh", lambda self: None)
     monkeypatch.setattr(MainWindow, "_request_repo_diff", lambda self: None)
     settings = QSettings(str(tmp_path / "window.ini"), QSettings.Format.IniFormat)
@@ -267,7 +283,9 @@ def test_show_untracked_and_ignored_toggles_filter_tree(qtbot, tmp_path: Path, m
     assert "[Ignored]" in root_names
 
 
-def test_prompt_open_directory_reprompts_for_non_git_selection(qtbot, tmp_path: Path, monkeypatch) -> None:
+def test_prompt_open_directory_reprompts_for_non_git_selection(
+    qtbot, tmp_path: Path, monkeypatch
+) -> None:
     monkeypatch.setattr(MainWindow, "refresh", lambda self: None)
     settings = QSettings(str(tmp_path / "window.ini"), QSettings.Format.IniFormat)
     window = MainWindow(str(tmp_path), settings=settings)
@@ -295,9 +313,13 @@ def test_prompt_open_directory_reprompts_for_non_git_selection(qtbot, tmp_path: 
 
     opened_paths: list[str] = []
 
-    monkeypatch.setattr(QFileDialog, "getExistingDirectory", fake_get_existing_directory)
+    monkeypatch.setattr(
+        QFileDialog, "getExistingDirectory", fake_get_existing_directory
+    )
     monkeypatch.setattr(QMessageBox, "warning", fake_warning)
-    monkeypatch.setattr(window, "_open_recent_in_new_instance", lambda path: opened_paths.append(path))
+    monkeypatch.setattr(
+        window, "_open_recent_in_new_instance", lambda path: opened_paths.append(path)
+    )
 
     window._prompt_open_directory_new_instance()
 

@@ -32,7 +32,12 @@ class GitDiffHighlighter(QSyntaxHighlighter):
         self._format_meta.setForeground(QColor("#2471A3"))
 
     def highlightBlock(self, text: str) -> None:
-        if text.startswith("+++ ") or text.startswith("--- ") or text.startswith("diff --git ") or text.startswith("index "):
+        if (
+            text.startswith("+++ ")
+            or text.startswith("--- ")
+            or text.startswith("diff --git ")
+            or text.startswith("index ")
+        ):
             self.setFormat(0, len(text), self._format_header)
             return
         if text.startswith("@@"):
@@ -46,4 +51,3 @@ class GitDiffHighlighter(QSyntaxHighlighter):
             return
         if text.startswith("### ") or text.startswith("Binary files "):
             self.setFormat(0, len(text), self._format_meta)
-

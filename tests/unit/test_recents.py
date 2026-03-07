@@ -23,4 +23,3 @@ def test_update_recent_paths_enforces_limit(tmp_path: Path) -> None:
     result = update_recent_paths(paths, paths[3], limit=10)
     assert len(result) == 10
     assert result[0] == paths[3]
-

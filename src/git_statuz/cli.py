@@ -5,14 +5,10 @@ import os
 import sys
 
 from PySide6.QtWidgets import QApplication
+from threep_commons.paths import configure_qsettings, resolve_app_data_dir
 
+from .constants import APP_IDENTITY, SETTINGS_APP_NAME, SETTINGS_ORG_NAME
 from .git_adapter import GitCommandError, resolve_repo_root
-from .runtime_paths import (
-    SETTINGS_APP_NAME,
-    SETTINGS_ORG_NAME,
-    configure_qsettings,
-    resolve_app_data_dir,
-)
 from .ui.main_window import MainWindow
 
 
@@ -70,10 +66,10 @@ def main(argv: list[str] | None = None) -> int:
     except GitCommandError as exc:
         parser.exit(status=2, message=f"error: {exc}\n")
 
-    configure_qsettings(args.config_dir)
+    configure_qsettings(APP_IDENTITY, config_dir_override=args.config_dir)
     if args.data_dir:
         os.environ["DATA_DIR"] = args.data_dir
-    resolve_app_data_dir(args.data_dir)
+    resolve_app_data_dir(APP_IDENTITY, override_dir=args.data_dir)
 
     app = QApplication.instance() or QApplication(sys.argv[:1])
     app.setOrganizationName(SETTINGS_ORG_NAME)

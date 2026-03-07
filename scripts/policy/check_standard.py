@@ -33,30 +33,43 @@ ROOT_REQUIRED = (
     "README.md",
 )
 
-WINDOWS_SCRIPT_REQUIRED = (
+QT_APP_WINDOWS_SCRIPT_REQUIRED = (
     "scripts/windows/setup_env.py",
     "scripts/windows/run_app.py",
     "scripts/windows/run_app_gui.pyw",
     "scripts/windows/run_tests.py",
 )
+SHARED_LIB_WINDOWS_SCRIPT_REQUIRED = (
+    "scripts/windows/setup_env.py",
+    "scripts/windows/run_tests.py",
+)
 
-PACKAGE_REQUIRED = (
+QT_APP_PACKAGE_REQUIRED = (
     "__init__.py",
     "__main__.py",
     "constants.py",
     "py.typed",
-    "runtime_paths.py",
 )
-PACKAGE_UTILS_REQUIRED = ("utils/__init__.py", "utils/logging_config.py")
+SHARED_LIB_PACKAGE_REQUIRED = (
+    "__init__.py",
+    "__main__.py",
+    "py.typed",
+)
 SRC_MODULE_RE = re.compile(r"^[a-z_][a-z0-9_]*\.py$")
 TEST_FILE_RE = re.compile(r"^test_[a-z0-9_]*\.py$")
 PROJECT_NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 PACKAGE_NAME_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 ALL_EXPORT_RE = re.compile(r"^\s*__all__\s*=", flags=re.MULTILINE)
-REQUIRED_TEST_DIRS = ("tests/unit", "tests/integration", "tests/gui")
-REQUIRED_PYTEST_MARKERS = {"integration", "gui", "slow"}
+QT_APP_REQUIRED_TEST_DIRS = ("tests/unit", "tests/integration", "tests/gui")
+SHARED_LIB_REQUIRED_TEST_DIRS = ("tests/unit", "tests/integration")
+QT_APP_REQUIRED_PYTEST_MARKERS = {"integration", "gui", "slow"}
+SHARED_LIB_REQUIRED_PYTEST_MARKERS = {"integration", "slow"}
 WINDOW_FIXTURE_RE = re.compile(
     r"@pytest\.fixture(?:\([^)]*\))?\s*[\r\n]+(?:[^\n]*[\r\n])*?def\s+window\s*\(",
+    flags=re.MULTILINE,
+)
+PROJECT_KIND_RE = re.compile(
+    r"^\s*project_kind:\s*['\"]?([a-z_]+)['\"]?\s*$",
     flags=re.MULTILINE,
 )
 MAX_SRC_FILE_LINES = 600
@@ -114,7 +127,9 @@ def run_command(repo_root: Path, args: list[str]) -> str:
         text=True,
     )
     if proc.returncode != 0:
-        raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or "command failed")
+        raise RuntimeError(
+            proc.stderr.strip() or proc.stdout.strip() or "command failed"
+        )
     return proc.stdout
 
 
@@ -198,10 +213,14 @@ def validate_main_entrypoint_contract(
         errors.append(f"{main_rel} must include 'from __future__ import annotations'.")
 
     if not re.search(r"if __name__\s*==\s*['\"]__main__['\"]\s*:", content):
-        errors.append(f"{main_rel} must guard execution with if __name__ == \"__main__\":")
+        errors.append(
+            f'{main_rel} must guard execution with if __name__ == "__main__":'
+        )
 
     if not re.search(r"raise\s+SystemExit\(\s*main\(\)\s*\)", content):
-        errors.append(f"{main_rel} must end with 'raise SystemExit(main())' in the guard block.")
+        errors.append(
+            f"{main_rel} must end with 'raise SystemExit(main())' in the guard block."
+        )
 
 
 def check_legal_disclaimer(readme_content: str, errors: list[str]) -> None:
@@ -270,6 +289,47 @@ def parse_marker_name(marker_entry: str) -> str:
     return marker_entry.split(":", 1)[0].strip()
 
 
+def load_project_kind(repo_root: Path) -> str:
+    answers_path = repo_root / ".copier-answers.yml"
+    if not answers_path.exists():
+        return "qt_app"
+    try:
+        content = answers_path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return "qt_app"
+    match = PROJECT_KIND_RE.search(content)
+    if not match:
+        return "qt_app"
+    project_kind = match.group(1).strip()
+    if project_kind not in {"qt_app", "shared_lib"}:
+        return "qt_app"
+    return project_kind
+
+
+def required_windows_scripts(project_kind: str) -> tuple[str, ...]:
+    if project_kind == "shared_lib":
+        return SHARED_LIB_WINDOWS_SCRIPT_REQUIRED
+    return QT_APP_WINDOWS_SCRIPT_REQUIRED
+
+
+def required_package_files(project_kind: str) -> tuple[str, ...]:
+    if project_kind == "shared_lib":
+        return SHARED_LIB_PACKAGE_REQUIRED
+    return QT_APP_PACKAGE_REQUIRED
+
+
+def required_test_dirs(project_kind: str) -> tuple[str, ...]:
+    if project_kind == "shared_lib":
+        return SHARED_LIB_REQUIRED_TEST_DIRS
+    return QT_APP_REQUIRED_TEST_DIRS
+
+
+def required_pytest_markers(project_kind: str) -> set[str]:
+    if project_kind == "shared_lib":
+        return SHARED_LIB_REQUIRED_PYTEST_MARKERS
+    return QT_APP_REQUIRED_PYTEST_MARKERS
+
+
 def collect_silent_broad_exception_warnings(
     repo_root: Path,
     tracked: list[str],
@@ -328,12 +388,15 @@ def collect_docstring_guidance(
                         f"Docstring guidance: add class docstring for '{node.name}' in {rel}:{node.lineno}."
                     )
                     warning_count += 1
-            elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                if _is_public_name(node.name) and ast.get_docstring(node) is None:
-                    warnings.append(
-                        f"Docstring guidance: add function docstring for '{node.name}' in {rel}:{node.lineno}."
-                    )
-                    warning_count += 1
+            elif (
+                isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and _is_public_name(node.name)
+                and ast.get_docstring(node) is None
+            ):
+                warnings.append(
+                    f"Docstring guidance: add function docstring for '{node.name}' in {rel}:{node.lineno}."
+                )
+                warning_count += 1
 
             if warning_count >= MAX_DOCSTRING_WARNINGS:
                 truncated = True
@@ -352,12 +415,16 @@ def main() -> int:
     repo_root = Path(__file__).resolve().parents[2]
     errors: list[str] = []
     warnings: list[str] = []
+    project_kind = load_project_kind(repo_root)
 
     try:
         tracked = tracked_files(repo_root)
         eol_lines = tracked_eol_lines(repo_root)
     except RuntimeError as exc:
-        print(f"Policy check failed: unable to inspect git-tracked files ({exc}).", file=sys.stderr)
+        print(
+            f"Policy check failed: unable to inspect git-tracked files ({exc}).",
+            file=sys.stderr,
+        )
         return 1
 
     tracked_set = set(tracked)
@@ -374,7 +441,9 @@ def main() -> int:
         )
 
     if len(src_packages) != 1:
-        errors.append(f"Expected exactly one package directory under src/, found {len(src_packages)}.")
+        errors.append(
+            f"Expected exactly one package directory under src/, found {len(src_packages)}."
+        )
         package_name = ""
     else:
         package_name = src_packages[0].name
@@ -393,15 +462,22 @@ def main() -> int:
             errors.append(f"project.name must be kebab-case: {project_name}")
 
         tool_table = require_table(pyproject, "tool", errors, "tool")
-        basedpyright_table = require_table(tool_table, "basedpyright", errors, "tool.basedpyright")
-        if basedpyright_table and basedpyright_table.get("typeCheckingMode") != "strict":
+        basedpyright_table = require_table(
+            tool_table, "basedpyright", errors, "tool.basedpyright"
+        )
+        if (
+            basedpyright_table
+            and basedpyright_table.get("typeCheckingMode") != "strict"
+        ):
             errors.append("tool.basedpyright.typeCheckingMode must be strict")
 
         ruff_table = require_table(tool_table, "ruff", errors, "tool.ruff")
         if ruff_table:
             lint_table = require_table(ruff_table, "lint", errors, "tool.ruff.lint")
             if lint_table:
-                select_rules = require_string_list(lint_table, "select", errors, "tool.ruff.lint")
+                select_rules = require_string_list(
+                    lint_table, "select", errors, "tool.ruff.lint"
+                )
                 if select_rules and REQUIRED_NAMING_RULE not in set(select_rules):
                     errors.append("tool.ruff.lint.select must include naming rule 'N'")
 
@@ -419,7 +495,9 @@ def main() -> int:
                         "tool.ruff.lint.pep8-naming",
                     )
                     if ignore_names:
-                        missing_ignores = sorted(REQUIRED_QT_NAMING_IGNORES - set(ignore_names))
+                        missing_ignores = sorted(
+                            REQUIRED_QT_NAMING_IGNORES - set(ignore_names)
+                        )
                         if missing_ignores:
                             errors.append(
                                 "tool.ruff.lint.pep8-naming.ignore-names is missing required Qt "
@@ -428,20 +506,28 @@ def main() -> int:
 
         pytest_table = tool_table.get("pytest", {}).get("ini_options", {})
         if not isinstance(pytest_table, dict):
-            errors.append("Missing or invalid [tool.pytest.ini_options] table in pyproject.toml")
+            errors.append(
+                "Missing or invalid [tool.pytest.ini_options] table in pyproject.toml"
+            )
         else:
             testpaths = pytest_table.get("testpaths")
             if not isinstance(testpaths, list) or "tests" not in testpaths:
                 errors.append("tool.pytest.ini_options.testpaths must include 'tests'")
 
             markers = pytest_table.get("markers")
-            if not isinstance(markers, list) or not all(isinstance(item, str) for item in markers):
+            if not isinstance(markers, list) or not all(
+                isinstance(item, str) for item in markers
+            ):
+                required_marker_names = sorted(required_pytest_markers(project_kind))
                 errors.append(
-                    "tool.pytest.ini_options.markers must be a list containing integration/gui/slow"
+                    "tool.pytest.ini_options.markers must be a list containing "
+                    + "/".join(required_marker_names)
                 )
             else:
                 configured_markers = {parse_marker_name(item) for item in markers}
-                missing_markers = sorted(REQUIRED_PYTEST_MARKERS - configured_markers)
+                missing_markers = sorted(
+                    required_pytest_markers(project_kind) - configured_markers
+                )
                 if missing_markers:
                     errors.append(
                         "tool.pytest.ini_options.markers is missing required markers: "
@@ -457,15 +543,17 @@ def main() -> int:
         try:
             readme_content = readme_path.read_text(encoding="utf-8", errors="ignore")
         except OSError as exc:
-            errors.append(f"Unable to read README.md for legal disclaimer policy: {exc}")
+            errors.append(
+                f"Unable to read README.md for legal disclaimer policy: {exc}"
+            )
         else:
             check_legal_disclaimer(readme_content, errors)
 
-    for rel in WINDOWS_SCRIPT_REQUIRED:
+    for rel in required_windows_scripts(project_kind):
         if rel not in tracked_set:
             errors.append(f"Missing required tracked file: {rel}")
 
-    for rel in REQUIRED_TEST_DIRS:
+    for rel in required_test_dirs(project_kind):
         if rel not in tracked_set and not (repo_root / rel).is_dir():
             errors.append(f"Missing required test directory: {rel}")
 
@@ -479,28 +567,33 @@ def main() -> int:
             rel_dir = test_dir.relative_to(repo_root).as_posix()
             init_file = test_dir / "__init__.py"
             if not init_file.is_file():
-                errors.append(f"Missing __init__.py in test package directory: {rel_dir}")
+                errors.append(
+                    f"Missing __init__.py in test package directory: {rel_dir}"
+                )
     else:
         errors.append("Missing tests/ directory")
 
-    conftest_path = repo_root / "tests" / "conftest.py"
-    if not conftest_path.is_file():
-        errors.append("Missing tests/conftest.py")
-    else:
-        try:
-            conftest_content = conftest_path.read_text(encoding="utf-8", errors="ignore")
-        except OSError as exc:
-            errors.append(f"Unable to read tests/conftest.py for fixture policy: {exc}")
+    if project_kind == "qt_app":
+        conftest_path = repo_root / "tests" / "conftest.py"
+        if not conftest_path.is_file():
+            errors.append("Missing tests/conftest.py")
         else:
-            if not WINDOW_FIXTURE_RE.search(conftest_content):
-                errors.append("tests/conftest.py must define a shared @pytest.fixture def window(...)")
+            try:
+                conftest_content = conftest_path.read_text(
+                    encoding="utf-8", errors="ignore"
+                )
+            except OSError as exc:
+                errors.append(
+                    f"Unable to read tests/conftest.py for fixture policy: {exc}"
+                )
+            else:
+                if not WINDOW_FIXTURE_RE.search(conftest_content):
+                    errors.append(
+                        "tests/conftest.py must define a shared @pytest.fixture def window(...)"
+                    )
 
     if package_name:
-        for rel in PACKAGE_REQUIRED:
-            package_file = f"src/{package_name}/{rel}"
-            if package_file not in tracked_set:
-                errors.append(f"Missing required tracked file: {package_file}")
-        for rel in PACKAGE_UTILS_REQUIRED:
+        for rel in required_package_files(project_kind):
             package_file = f"src/{package_name}/{rel}"
             if package_file not in tracked_set:
                 errors.append(f"Missing required tracked file: {package_file}")
@@ -512,10 +605,14 @@ def main() -> int:
                     errors="ignore",
                 )
             except OSError as exc:
-                errors.append(f"Unable to read {package_init_file} for __all__ policy: {exc}")
+                errors.append(
+                    f"Unable to read {package_init_file} for __all__ policy: {exc}"
+                )
             else:
                 if not ALL_EXPORT_RE.search(package_init_content):
-                    errors.append(f"Missing required __all__ export list in {package_init_file}")
+                    errors.append(
+                        f"Missing required __all__ export list in {package_init_file}"
+                    )
         validate_main_entrypoint_contract(repo_root, package_name, tracked_set, errors)
         if has_module_package_name_collisions(tracked, package_name):
             errors.append(
@@ -553,7 +650,7 @@ def main() -> int:
 
         if package_name and rel.startswith(f"src/{package_name}/"):
             filename = Path(rel).name
-            if filename in PACKAGE_REQUIRED:
+            if filename in required_package_files(project_kind):
                 continue
             if not SRC_MODULE_RE.match(filename):
                 errors.append(f"Non-standard Python module filename in src/: {rel}")
@@ -590,13 +687,17 @@ def main() -> int:
             except OSError:
                 continue
             if banned_launch_ref in content:
-                errors.append(f"Found deprecated launch reference '{banned_launch_ref}' in {rel}")
+                errors.append(
+                    f"Found deprecated launch reference '{banned_launch_ref}' in {rel}"
+                )
 
     gitattributes_path = repo_root / ".gitattributes"
     if gitattributes_path.exists():
         content = gitattributes_path.read_text(encoding="utf-8", errors="ignore")
         if not re.search(r"^\*\s+text=auto\s+eol=lf\s*$", content, flags=re.MULTILINE):
-            errors.append("Missing canonical LF rule in .gitattributes: '* text=auto eol=lf'")
+            errors.append(
+                "Missing canonical LF rule in .gitattributes: '* text=auto eol=lf'"
+            )
     else:
         errors.append("Missing .gitattributes")
 

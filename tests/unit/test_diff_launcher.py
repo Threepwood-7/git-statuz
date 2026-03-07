@@ -20,7 +20,9 @@ class _DummyGitAdapter:
         return b"from head\n"
 
 
-def _file_status(path: str, *, tracked: bool, untracked: bool = False, ignored: bool = False) -> FileStatus:
+def _file_status(
+    path: str, *, tracked: bool, untracked: bool = False, ignored: bool = False
+) -> FileStatus:
     return FileStatus(
         repo_relpath=path,
         is_tracked=tracked,
@@ -41,17 +43,23 @@ def test_resolve_winmerge_path_uses_explicit(tmp_path: Path) -> None:
 
 
 def test_open_untracked_uses_default_editor(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(diff_launcher, "resolve_winmerge_path", lambda preferred_path=None: None)
+    monkeypatch.setattr(
+        diff_launcher, "resolve_winmerge_path", lambda preferred_path=None: None
+    )
     repo = tmp_path / "repo"
     repo.mkdir()
     file_path = repo / "new.txt"
     file_path.write_text("new", encoding="utf-8")
 
     opened: list[str] = []
-    monkeypatch.setattr(os, "startfile", lambda path: opened.append(path), raising=False)
+    monkeypatch.setattr(
+        os, "startfile", lambda path: opened.append(path), raising=False
+    )
 
     launcher = DiffLauncher(str(repo))
-    launcher.open_for_file(_file_status("new.txt", tracked=False, untracked=True), _DummyGitAdapter())
+    launcher.open_for_file(
+        _file_status("new.txt", tracked=False, untracked=True), _DummyGitAdapter()
+    )
 
     assert opened == [str(file_path)]
 
@@ -65,28 +73,39 @@ def test_open_tracked_uses_winmerge(monkeypatch, tmp_path: Path) -> None:
     winmerge.write_text("", encoding="utf-8")
 
     calls: list[list[str]] = []
-    monkeypatch.setattr(diff_launcher.subprocess, "Popen", lambda args: calls.append(args))
+    monkeypatch.setattr(
+        diff_launcher.subprocess, "Popen", lambda args: calls.append(args)
+    )
 
     launcher = DiffLauncher(str(repo), winmerge_path=str(winmerge))
-    launcher.open_for_file(_file_status("tracked.txt", tracked=True), _DummyGitAdapter())
+    launcher.open_for_file(
+        _file_status("tracked.txt", tracked=True), _DummyGitAdapter()
+    )
 
     assert len(calls) == 1
     assert calls[0][0] == str(winmerge)
     assert calls[0][-1] == str(file_path)
 
 
-def test_open_tracked_without_winmerge_falls_back_to_editor(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(diff_launcher, "resolve_winmerge_path", lambda preferred_path=None: None)
+def test_open_tracked_without_winmerge_falls_back_to_editor(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(
+        diff_launcher, "resolve_winmerge_path", lambda preferred_path=None: None
+    )
     repo = tmp_path / "repo"
     repo.mkdir()
     file_path = repo / "tracked.txt"
     file_path.write_text("working tree\n", encoding="utf-8")
 
     opened: list[str] = []
-    monkeypatch.setattr(os, "startfile", lambda path: opened.append(path), raising=False)
+    monkeypatch.setattr(
+        os, "startfile", lambda path: opened.append(path), raising=False
+    )
 
     launcher = DiffLauncher(str(repo))
-    launcher.open_for_file(_file_status("tracked.txt", tracked=True), _DummyGitAdapter())
+    launcher.open_for_file(
+        _file_status("tracked.txt", tracked=True), _DummyGitAdapter()
+    )
 
     assert opened == [str(file_path)]
-

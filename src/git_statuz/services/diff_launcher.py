@@ -48,7 +48,9 @@ class DiffLauncher:
         self._temp_files.clear()
 
     def _new_temp_file(self, payload: bytes, suffix: str) -> str:
-        with tempfile.NamedTemporaryFile(prefix="gitstatuz_", suffix=suffix, delete=False) as handle:
+        with tempfile.NamedTemporaryFile(
+            prefix="gitstatuz_", suffix=suffix, delete=False
+        ) as handle:
             handle.write(payload)
             tmp = handle.name
         self._temp_files.append(tmp)
@@ -77,7 +79,9 @@ class DiffLauncher:
             left_payload = b""
             if git_adapter.has_head():
                 try:
-                    left_payload = git_adapter.get_head_file_bytes(file_status.repo_relpath)
+                    left_payload = git_adapter.get_head_file_bytes(
+                        file_status.repo_relpath
+                    )
                 except Exception:
                     left_payload = b""
             left_path = self._new_temp_file(left_payload, suffix)
@@ -91,4 +95,3 @@ class DiffLauncher:
             return
 
         self._open_default_editor(file_path)
-

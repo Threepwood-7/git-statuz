@@ -7,7 +7,9 @@ SETTINGS_RECENT_PATHS_KEY = "prefs/recent_paths"
 MAX_RECENT_PATHS = 10
 
 
-def update_recent_paths(paths: list[str], new_path: str, limit: int = MAX_RECENT_PATHS) -> list[str]:
+def update_recent_paths(
+    paths: list[str], new_path: str, limit: int = MAX_RECENT_PATHS
+) -> list[str]:
     normalized_new = str(Path(new_path).resolve())
     deduped = [normalized_new]
     for existing in paths:

@@ -108,14 +108,18 @@ def build_tree_model(file_statuses: Sequence[FileStatus]) -> QStandardItemModel:
             ignored_group_item = name_item
         return ignored_group_item
 
-    def ensure_dir(region: str, dir_path: str, parent: QStandardItem, label: str) -> QStandardItem:
+    def ensure_dir(
+        region: str, dir_path: str, parent: QStandardItem, label: str
+    ) -> QStandardItem:
         key = (region, dir_path)
         if key in dir_cache:
             return dir_cache[key]
         name_item = QStandardItem(label)
         modified_item = QStandardItem("")
         status_item = QStandardItem("")
-        _set_row_data(name_item, modified_item, status_item, "dir", dir_path or None, None)
+        _set_row_data(
+            name_item, modified_item, status_item, "dir", dir_path or None, None
+        )
         parent.appendRow([name_item, modified_item, status_item])
         dir_cache[key] = name_item
         return name_item
@@ -137,7 +141,14 @@ def build_tree_model(file_statuses: Sequence[FileStatus]) -> QStandardItemModel:
         name_item = QStandardItem(parts[-1])
         modified_item = QStandardItem(file_status.last_modified_iso or "")
         status_item = QStandardItem(format_status_text(file_status))
-        _set_row_data(name_item, modified_item, status_item, "file", file_status.repo_relpath, file_status)
+        _set_row_data(
+            name_item,
+            modified_item,
+            status_item,
+            "file",
+            file_status.repo_relpath,
+            file_status,
+        )
 
         color = status_color(file_status)
         if color.isValid():

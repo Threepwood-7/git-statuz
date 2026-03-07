@@ -37,4 +37,3 @@ class HistoryTableModel(QStandardItemModel):
                 QStandardItem(message),
             ]
         )
-

@@ -36,7 +36,12 @@ def _status(
 def test_build_tree_model_places_ignored_in_group() -> None:
     model = build_tree_model(
         [
-            _status("src/main.py", tracked=True, unstaged=True, last_modified_iso="2026-03-04 10:30:00"),
+            _status(
+                "src/main.py",
+                tracked=True,
+                unstaged=True,
+                last_modified_iso="2026-03-04 10:30:00",
+            ),
             _status("tmp/cache.bin", tracked=False, ignored=True),
         ]
     )
@@ -49,11 +54,19 @@ def test_build_tree_model_places_ignored_in_group() -> None:
     assert "src" in root_names
     assert "[Ignored]" in root_names
 
-    src_item = next(model.item(row, 0) for row in range(model.rowCount()) if model.item(row, 0).text() == "src")
+    src_item = next(
+        model.item(row, 0)
+        for row in range(model.rowCount())
+        if model.item(row, 0).text() == "src"
+    )
     assert src_item.child(0, 0).text() == "main.py"
     assert src_item.child(0, 1).text() == "2026-03-04 10:30:00"
 
-    ignored_item = next(model.item(row, 0) for row in range(model.rowCount()) if model.item(row, 0).text() == "[Ignored]")
+    ignored_item = next(
+        model.item(row, 0)
+        for row in range(model.rowCount())
+        if model.item(row, 0).text() == "[Ignored]"
+    )
     assert model.item(ignored_item.row(), 1).text() == ""
     assert ignored_item.rowCount() == 1
     assert ignored_item.child(0, 0).text() == "tmp"
