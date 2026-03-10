@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import subprocess
 from typing import TYPE_CHECKING
 
+from git_statuz import git_adapter as git_adapter_module
 from git_statuz.git_adapter import (
     GitAdapter,
     parse_commit_log,
@@ -11,6 +13,89 @@ from tests.conftest import commit_file, init_repo, run_git
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+def test_resolve_repo_root_uses_create_no_window_on_windows(monkeypatch) -> None:
+    captured_kwargs: dict[str, object] = {}
+    creation_flag = 0x08000000
+
+    def fake_run(cmd: list[str], **kwargs: object) -> subprocess.CompletedProcess[bytes]:
+        captured_kwargs.update(kwargs)
+        return subprocess.CompletedProcess(
+            args=cmd,
+            returncode=0,
+            stdout=b"C:\\repos\\demo\n",
+            stderr=b"",
+        )
+
+    monkeypatch.setattr(git_adapter_module.sys, "platform", "win32")
+    monkeypatch.setattr(
+        git_adapter_module.subprocess,
+        "CREATE_NO_WINDOW",
+        creation_flag,
+        raising=False,
+    )
+    monkeypatch.setattr(git_adapter_module.subprocess, "run", fake_run)
+
+    resolved = git_adapter_module.resolve_repo_root("C:/repos/demo")
+
+    assert resolved == "C:\\repos\\demo"
+    assert captured_kwargs["creationflags"] == creation_flag
+
+
+def test_run_git_uses_create_no_window_on_windows(monkeypatch) -> None:
+    captured_kwargs: dict[str, object] = {}
+    creation_flag = 0x08000000
+
+    def fake_run(cmd: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        captured_kwargs.update(kwargs)
+        return subprocess.CompletedProcess(
+            args=cmd,
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+
+    monkeypatch.setattr(git_adapter_module.sys, "platform", "win32")
+    monkeypatch.setattr(
+        git_adapter_module.subprocess,
+        "CREATE_NO_WINDOW",
+        creation_flag,
+        raising=False,
+    )
+    monkeypatch.setattr(git_adapter_module.subprocess, "run", fake_run)
+
+    adapter = GitAdapter("C:/repos/demo", history_limit=30)
+    adapter._run_git(["status"], text=True, check=False)
+
+    assert captured_kwargs["creationflags"] == creation_flag
+
+
+def test_run_git_does_not_set_creationflags_off_windows(monkeypatch) -> None:
+    captured_kwargs: dict[str, object] = {}
+
+    def fake_run(cmd: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        captured_kwargs.update(kwargs)
+        return subprocess.CompletedProcess(
+            args=cmd,
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+
+    monkeypatch.setattr(git_adapter_module.sys, "platform", "linux")
+    monkeypatch.setattr(
+        git_adapter_module.subprocess,
+        "CREATE_NO_WINDOW",
+        0x08000000,
+        raising=False,
+    )
+    monkeypatch.setattr(git_adapter_module.subprocess, "run", fake_run)
+
+    adapter = GitAdapter("/tmp/demo", history_limit=30)
+    adapter._run_git(["status"], text=True, check=False)
+
+    assert "creationflags" not in captured_kwargs
 
 
 def test_parse_status_porcelain_v2_covers_core_states() -> None:
