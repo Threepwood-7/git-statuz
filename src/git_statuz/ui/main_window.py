@@ -55,8 +55,34 @@ SETTINGS_TREE_WIDTHS_KEY = "ui/tree_column_widths"
 SETTINGS_HISTORY_WIDTHS_KEY = "ui/history_column_widths"
 SETTINGS_MAIN_SPLITTER_SIZES_KEY = "ui/main_splitter_sizes"
 SETTINGS_RIGHT_SPLITTER_SIZES_KEY = "ui/right_splitter_sizes"
+SETTINGS_SHOW_MODIFIED_KEY = "ui/show_modified"
+SETTINGS_SHOW_STAGED_KEY = "ui/show_staged"
+SETTINGS_SHOW_CONFLICTED_KEY = "ui/show_conflicted"
+SETTINGS_SHOW_DELETED_KEY = "ui/show_deleted"
+SETTINGS_SHOW_RENAMED_KEY = "ui/show_renamed"
 SETTINGS_SHOW_UNTRACKED_KEY = "ui/show_untracked"
 SETTINGS_SHOW_IGNORED_KEY = "ui/show_ignored"
+SETTINGS_SHOW_UNCHANGED_KEY = "ui/show_unchanged"
+STATUS_FILTER_ORDER = (
+    "modified",
+    "staged",
+    "conflicted",
+    "deleted",
+    "renamed",
+    "untracked",
+    "ignored",
+    "unchanged",
+)
+STATUS_FILTER_SETTINGS_KEYS = {
+    "modified": SETTINGS_SHOW_MODIFIED_KEY,
+    "staged": SETTINGS_SHOW_STAGED_KEY,
+    "conflicted": SETTINGS_SHOW_CONFLICTED_KEY,
+    "deleted": SETTINGS_SHOW_DELETED_KEY,
+    "renamed": SETTINGS_SHOW_RENAMED_KEY,
+    "untracked": SETTINGS_SHOW_UNTRACKED_KEY,
+    "ignored": SETTINGS_SHOW_IGNORED_KEY,
+    "unchanged": SETTINGS_SHOW_UNCHANGED_KEY,
+}
 PREVIEW_MAX_CHARS = 512 * 1024
 
 
@@ -156,12 +182,8 @@ class MainWindow(QMainWindow):
             self._settings.value(SETTINGS_RECENT_PATHS_KEY, []),
             limit=MAX_RECENT_PATHS,
         )
-        self._show_untracked = _coerce_bool(
-            self._settings.value(SETTINGS_SHOW_UNTRACKED_KEY, True), True
-        )
-        self._show_ignored = _coerce_bool(
-            self._settings.value(SETTINGS_SHOW_IGNORED_KEY, True), True
-        )
+        self._status_filter_enabled = self._load_status_filter_settings()
+        self._status_filter_checkboxes: dict[str, QCheckBox] = {}
         self._thread_pool = QThreadPool.globalInstance()
         self._git_adapter = GitAdapter(str(self.repo_root), history_limit=history_limit)
         self._diff_launcher = DiffLauncher(
@@ -226,10 +248,6 @@ class MainWindow(QMainWindow):
         self.expand_2_button = QPushButton("Expand +2")
         self.collapse_1_button = QPushButton("Collapse -1")
         self.collapse_2_button = QPushButton("Collapse -2")
-        self.show_untracked_checkbox = QCheckBox("Show untracked")
-        self.show_untracked_checkbox.setChecked(self._show_untracked)
-        self.show_ignored_checkbox = QCheckBox("Show ignored")
-        self.show_ignored_checkbox.setChecked(self._show_ignored)
 
         top_bar.addWidget(self.repo_label, stretch=3)
         top_bar.addWidget(self.branch_label, stretch=3)
@@ -238,10 +256,45 @@ class MainWindow(QMainWindow):
         top_bar.addWidget(self.expand_2_button, stretch=0)
         top_bar.addWidget(self.collapse_1_button, stretch=0)
         top_bar.addWidget(self.collapse_2_button, stretch=0)
-        top_bar.addWidget(self.show_untracked_checkbox, stretch=0)
-        top_bar.addWidget(self.show_ignored_checkbox, stretch=0)
         top_bar.addWidget(self.status_label, stretch=2)
         top_bar.addWidget(self.refresh_button, stretch=0)
+
+        filter_row = QHBoxLayout()
+        filter_row.setSpacing(8)
+        filter_row.addWidget(QLabel("filters:"), stretch=0)
+        self.show_modified_checkbox = self._create_status_filter_checkbox(
+            "modified", "Show modified"
+        )
+        self.show_staged_checkbox = self._create_status_filter_checkbox(
+            "staged", "Show staged"
+        )
+        self.show_conflicted_checkbox = self._create_status_filter_checkbox(
+            "conflicted", "Show conflicted"
+        )
+        self.show_deleted_checkbox = self._create_status_filter_checkbox(
+            "deleted", "Show deleted"
+        )
+        self.show_renamed_checkbox = self._create_status_filter_checkbox(
+            "renamed", "Show renamed"
+        )
+        self.show_untracked_checkbox = self._create_status_filter_checkbox(
+            "untracked", "Show untracked"
+        )
+        self.show_ignored_checkbox = self._create_status_filter_checkbox(
+            "ignored", "Show ignored"
+        )
+        self.show_unchanged_checkbox = self._create_status_filter_checkbox(
+            "unchanged", "Show unchanged"
+        )
+        filter_row.addWidget(self.show_modified_checkbox, stretch=0)
+        filter_row.addWidget(self.show_staged_checkbox, stretch=0)
+        filter_row.addWidget(self.show_conflicted_checkbox, stretch=0)
+        filter_row.addWidget(self.show_deleted_checkbox, stretch=0)
+        filter_row.addWidget(self.show_renamed_checkbox, stretch=0)
+        filter_row.addWidget(self.show_untracked_checkbox, stretch=0)
+        filter_row.addWidget(self.show_ignored_checkbox, stretch=0)
+        filter_row.addWidget(self.show_unchanged_checkbox, stretch=0)
+        filter_row.addStretch(1)
 
         splitter = QSplitter()
         self._main_splitter = splitter
@@ -295,6 +348,7 @@ class MainWindow(QMainWindow):
         self.history_view.horizontalHeader().setStretchLastSection(False)
 
         root_layout.addLayout(top_bar)
+        root_layout.addLayout(filter_row)
         root_layout.addWidget(splitter, stretch=1)
 
         self.setCentralWidget(root_widget)
@@ -312,10 +366,12 @@ class MainWindow(QMainWindow):
         self.expand_2_button.clicked.connect(lambda: self._adjust_tree_depth(2))
         self.collapse_1_button.clicked.connect(lambda: self._adjust_tree_depth(-1))
         self.collapse_2_button.clicked.connect(lambda: self._adjust_tree_depth(-2))
-        self.show_untracked_checkbox.toggled.connect(
-            self._handle_show_untracked_toggled
-        )
-        self.show_ignored_checkbox.toggled.connect(self._handle_show_ignored_toggled)
+        for tag, checkbox in self._status_filter_checkboxes.items():
+            checkbox.toggled.connect(
+                lambda checked, status_tag=tag: self._handle_status_filter_toggled(
+                    status_tag, checked
+                )
+            )
         self.tree_view.header().sectionResized.connect(self._save_tree_column_widths)
         self.history_view.horizontalHeader().sectionResized.connect(
             self._save_history_column_widths
@@ -430,12 +486,18 @@ class MainWindow(QMainWindow):
     def _visible_file_statuses(self) -> list[FileStatus]:
         if self._snapshot is None:
             return []
-        visible = self._snapshot.file_statuses
-        if not self._show_untracked:
-            visible = [status for status in visible if not status.is_untracked]
-        if not self._show_ignored:
-            visible = [status for status in visible if not status.is_ignored]
-        return visible
+        enabled_statuses = {
+            tag
+            for tag, enabled in self._status_filter_enabled.items()
+            if enabled
+        }
+        if not enabled_statuses:
+            return []
+        return [
+            status
+            for status in self._snapshot.file_statuses
+            if self._status_tags_for_file(status) & enabled_statuses
+        ]
 
     def _rebuild_tree_model(self) -> None:
         tree_model = build_tree_model(self._visible_file_statuses())
@@ -459,15 +521,44 @@ class MainWindow(QMainWindow):
             and not file_status.is_renamed
         )
 
-    def _handle_show_untracked_toggled(self, checked: bool) -> None:
-        self._show_untracked = checked
-        self._settings.setValue(SETTINGS_SHOW_UNTRACKED_KEY, checked)
+    def _status_tags_for_file(self, file_status: FileStatus) -> set[str]:
+        tags: set[str] = set()
+        if file_status.is_unstaged:
+            tags.add("modified")
+        if file_status.is_staged:
+            tags.add("staged")
+        if file_status.is_conflicted:
+            tags.add("conflicted")
+        if file_status.is_deleted:
+            tags.add("deleted")
+        if file_status.is_renamed:
+            tags.add("renamed")
+        if file_status.is_untracked:
+            tags.add("untracked")
+        if file_status.is_ignored:
+            tags.add("ignored")
+        if self._is_tracked_unchanged(file_status):
+            tags.add("unchanged")
+        return tags
+
+    def _handle_status_filter_toggled(self, tag: str, checked: bool) -> None:
+        self._status_filter_enabled[tag] = checked
+        self._settings.setValue(STATUS_FILTER_SETTINGS_KEYS[tag], checked)
         self._refresh_after_filter_toggle()
 
-    def _handle_show_ignored_toggled(self, checked: bool) -> None:
-        self._show_ignored = checked
-        self._settings.setValue(SETTINGS_SHOW_IGNORED_KEY, checked)
-        self._refresh_after_filter_toggle()
+    def _load_status_filter_settings(self) -> dict[str, bool]:
+        return {
+            tag: _coerce_bool(
+                self._settings.value(STATUS_FILTER_SETTINGS_KEYS[tag], True), True
+            )
+            for tag in STATUS_FILTER_ORDER
+        }
+
+    def _create_status_filter_checkbox(self, tag: str, label: str) -> QCheckBox:
+        checkbox = QCheckBox(label)
+        checkbox.setChecked(self._status_filter_enabled[tag])
+        self._status_filter_checkboxes[tag] = checkbox
+        return checkbox
 
     def _refresh_after_filter_toggle(self) -> None:
         if self._snapshot is None:
@@ -833,7 +924,7 @@ class MainWindow(QMainWindow):
         self._save_tree_column_widths()
         self._save_history_column_widths()
         self._save_splitter_sizes()
-        self._settings.setValue(SETTINGS_SHOW_UNTRACKED_KEY, self._show_untracked)
-        self._settings.setValue(SETTINGS_SHOW_IGNORED_KEY, self._show_ignored)
+        for tag, enabled in self._status_filter_enabled.items():
+            self._settings.setValue(STATUS_FILTER_SETTINGS_KEYS[tag], enabled)
         self._settings.sync()
         super().closeEvent(event)

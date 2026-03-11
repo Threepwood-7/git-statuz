@@ -197,7 +197,7 @@ def test_main_window_switches_history_by_file_selection(
     assert "UNCHANGED CONTENT" in window.diff_view.toPlainText()
 
 
-def test_show_untracked_and_ignored_toggles_filter_tree(
+def test_status_filter_checkboxes_cover_all_file_statuses(
     qtbot, tmp_path: Path, monkeypatch
 ) -> None:
     monkeypatch.setattr(MainWindow, "refresh", lambda self: None)
@@ -206,8 +206,8 @@ def test_show_untracked_and_ignored_toggles_filter_tree(
     window = MainWindow(str(tmp_path), settings=settings)
     qtbot.addWidget(window)
 
-    tracked = FileStatus(
-        repo_relpath="tracked.txt",
+    unchanged = FileStatus(
+        repo_relpath="unchanged.txt",
         is_tracked=True,
         is_untracked=False,
         is_ignored=False,
@@ -217,8 +217,63 @@ def test_show_untracked_and_ignored_toggles_filter_tree(
         is_deleted=False,
         is_renamed=False,
     )
+    modified = FileStatus(
+        repo_relpath="modified.txt",
+        is_tracked=True,
+        is_untracked=False,
+        is_ignored=False,
+        is_staged=False,
+        is_unstaged=True,
+        is_conflicted=False,
+        is_deleted=False,
+        is_renamed=False,
+    )
+    staged = FileStatus(
+        repo_relpath="staged.txt",
+        is_tracked=True,
+        is_untracked=False,
+        is_ignored=False,
+        is_staged=True,
+        is_unstaged=False,
+        is_conflicted=False,
+        is_deleted=False,
+        is_renamed=False,
+    )
+    conflicted = FileStatus(
+        repo_relpath="conflicted.txt",
+        is_tracked=True,
+        is_untracked=False,
+        is_ignored=False,
+        is_staged=False,
+        is_unstaged=False,
+        is_conflicted=True,
+        is_deleted=False,
+        is_renamed=False,
+    )
+    deleted = FileStatus(
+        repo_relpath="deleted.txt",
+        is_tracked=True,
+        is_untracked=False,
+        is_ignored=False,
+        is_staged=False,
+        is_unstaged=False,
+        is_conflicted=False,
+        is_deleted=True,
+        is_renamed=False,
+    )
+    renamed = FileStatus(
+        repo_relpath="renamed.txt",
+        is_tracked=True,
+        is_untracked=False,
+        is_ignored=False,
+        is_staged=False,
+        is_unstaged=False,
+        is_conflicted=False,
+        is_deleted=False,
+        is_renamed=True,
+    )
     untracked = FileStatus(
-        repo_relpath="new.txt",
+        repo_relpath="untracked.txt",
         is_tracked=False,
         is_untracked=True,
         is_ignored=False,
@@ -229,7 +284,7 @@ def test_show_untracked_and_ignored_toggles_filter_tree(
         is_renamed=False,
     )
     ignored = FileStatus(
-        repo_relpath="ignored.log",
+        repo_relpath="ignored.txt",
         is_tracked=False,
         is_untracked=False,
         is_ignored=True,
@@ -239,48 +294,116 @@ def test_show_untracked_and_ignored_toggles_filter_tree(
         is_deleted=False,
         is_renamed=False,
     )
+    modified_and_staged = FileStatus(
+        repo_relpath="both.txt",
+        is_tracked=True,
+        is_untracked=False,
+        is_ignored=False,
+        is_staged=True,
+        is_unstaged=True,
+        is_conflicted=False,
+        is_deleted=False,
+        is_renamed=False,
+    )
     snapshot = RepoSnapshot(
         branch_status=BranchStatus("main", False, "origin/main", 0, 0),
-        file_statuses=[tracked, untracked, ignored],
-        counts=StatusCounts(staged=0, unstaged=0, untracked=1, conflicted=0, ignored=1),
+        file_statuses=[
+            unchanged,
+            modified,
+            staged,
+            conflicted,
+            deleted,
+            renamed,
+            untracked,
+            ignored,
+            modified_and_staged,
+        ],
+        counts=StatusCounts(
+            staged=2,
+            unstaged=2,
+            untracked=1,
+            conflicted=1,
+            ignored=1,
+        ),
         repo_history=[],
         has_commits=False,
     )
 
+    def root_names() -> list[str]:
+        model = window.tree_view.model()
+        return [model.item(row, 0).text() for row in range(model.rowCount())]
+
+    def ignored_names() -> list[str]:
+        model = window.tree_view.model()
+        ignored_item = next(
+            (
+                model.item(row, 0)
+                for row in range(model.rowCount())
+                if model.item(row, 0).text() == "[Ignored]"
+            ),
+            None,
+        )
+        if ignored_item is None:
+            return []
+        return [ignored_item.child(row, 0).text() for row in range(ignored_item.rowCount())]
+
     window._handle_snapshot_loaded(snapshot)
-    model = window.tree_view.model()
-    root_names = [model.item(row, 0).text() for row in range(model.rowCount())]
-    assert "tracked.txt" in root_names
-    assert "new.txt" in root_names
-    assert "[Ignored]" in root_names
+    names = root_names()
+    assert "unchanged.txt" in names
+    assert "modified.txt" in names
+    assert "staged.txt" in names
+    assert "conflicted.txt" in names
+    assert "deleted.txt" in names
+    assert "renamed.txt" in names
+    assert "untracked.txt" in names
+    assert "both.txt" in names
+    assert "[Ignored]" in names
+    assert ignored_names() == ["ignored.txt"]
+
+    window.show_modified_checkbox.setChecked(False)
+    names = root_names()
+    assert "modified.txt" not in names
+    assert "both.txt" in names
+
+    window.show_staged_checkbox.setChecked(False)
+    names = root_names()
+    assert "staged.txt" not in names
+    assert "both.txt" not in names
+
+    window.show_modified_checkbox.setChecked(True)
+    names = root_names()
+    assert "modified.txt" in names
+    assert "both.txt" in names
+    assert "staged.txt" not in names
+
+    window.show_conflicted_checkbox.setChecked(False)
+    names = root_names()
+    assert "conflicted.txt" not in names
+
+    window.show_deleted_checkbox.setChecked(False)
+    names = root_names()
+    assert "deleted.txt" not in names
+
+    window.show_renamed_checkbox.setChecked(False)
+    names = root_names()
+    assert "renamed.txt" not in names
 
     window.show_untracked_checkbox.setChecked(False)
-    model = window.tree_view.model()
-    root_names = [model.item(row, 0).text() for row in range(model.rowCount())]
-    assert "tracked.txt" in root_names
-    assert "new.txt" not in root_names
-    assert "[Ignored]" in root_names
+    names = root_names()
+    assert "untracked.txt" not in names
+
+    window.show_unchanged_checkbox.setChecked(False)
+    names = root_names()
+    assert "unchanged.txt" not in names
 
     window.show_ignored_checkbox.setChecked(False)
-    model = window.tree_view.model()
-    root_names = [model.item(row, 0).text() for row in range(model.rowCount())]
-    assert "tracked.txt" in root_names
-    assert "new.txt" not in root_names
-    assert "[Ignored]" not in root_names
-
-    window.show_untracked_checkbox.setChecked(True)
-    model = window.tree_view.model()
-    root_names = [model.item(row, 0).text() for row in range(model.rowCount())]
-    assert "tracked.txt" in root_names
-    assert "new.txt" in root_names
-    assert "[Ignored]" not in root_names
+    names = root_names()
+    assert "[Ignored]" not in names
 
     window.show_ignored_checkbox.setChecked(True)
-    model = window.tree_view.model()
-    root_names = [model.item(row, 0).text() for row in range(model.rowCount())]
-    assert "tracked.txt" in root_names
-    assert "new.txt" in root_names
-    assert "[Ignored]" in root_names
+    names = root_names()
+    assert "[Ignored]" in names
+    assert ignored_names() == ["ignored.txt"]
 
 
 def test_prompt_open_directory_reprompts_for_non_git_selection(
