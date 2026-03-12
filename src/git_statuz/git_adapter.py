@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import subprocess
-import sys
 from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
+
+from threep_commons.subprocess_helpers import windows_no_window_run_kwargs
 
 from .models import BranchStatus, CommitEntry, FileStatus, RepoSnapshot, StatusCounts
 
@@ -12,23 +13,13 @@ from .models import BranchStatus, CommitEntry, FileStatus, RepoSnapshot, StatusC
 class GitCommandError(RuntimeError):
     """Raised when a git command fails."""
 
-
-def _git_subprocess_kwargs() -> dict[str, int]:
-    if sys.platform != "win32":
-        return {}
-    create_no_window = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-    if not create_no_window:
-        return {}
-    return {"creationflags": create_no_window}
-
-
 def resolve_repo_root(path: str | Path) -> str:
     path_str = str(path)
     proc = subprocess.run(
         ["git", "-C", path_str, "rev-parse", "--show-toplevel"],
         capture_output=True,
         check=False,
-        **_git_subprocess_kwargs(),
+        **windows_no_window_run_kwargs(),
     )
     if proc.returncode != 0:
         stderr = proc.stderr.decode("utf-8", "replace").strip()
@@ -240,7 +231,7 @@ class GitAdapter:
             text=text,
             encoding="utf-8" if text else None,
             errors="replace" if text else None,
-            **_git_subprocess_kwargs(),
+            **windows_no_window_run_kwargs(),
         )
         if check and proc.returncode != 0:
             stderr = proc.stderr if text else proc.stderr.decode("utf-8", "replace")

@@ -9,6 +9,7 @@ from git_statuz.git_adapter import (
     parse_commit_log,
     parse_status_porcelain_v2,
 )
+import threep_commons.subprocess_helpers as subprocess_helpers_module
 from tests.conftest import commit_file, init_repo, run_git
 
 if TYPE_CHECKING:
@@ -28,9 +29,9 @@ def test_resolve_repo_root_uses_create_no_window_on_windows(monkeypatch) -> None
             stderr=b"",
         )
 
-    monkeypatch.setattr(git_adapter_module.sys, "platform", "win32")
+    monkeypatch.setattr(subprocess_helpers_module.sys, "platform", "win32")
     monkeypatch.setattr(
-        git_adapter_module.subprocess,
+        subprocess_helpers_module.subprocess,
         "CREATE_NO_WINDOW",
         creation_flag,
         raising=False,
@@ -56,9 +57,9 @@ def test_run_git_uses_create_no_window_on_windows(monkeypatch) -> None:
             stderr="",
         )
 
-    monkeypatch.setattr(git_adapter_module.sys, "platform", "win32")
+    monkeypatch.setattr(subprocess_helpers_module.sys, "platform", "win32")
     monkeypatch.setattr(
-        git_adapter_module.subprocess,
+        subprocess_helpers_module.subprocess,
         "CREATE_NO_WINDOW",
         creation_flag,
         raising=False,
@@ -83,9 +84,9 @@ def test_run_git_does_not_set_creationflags_off_windows(monkeypatch) -> None:
             stderr="",
         )
 
-    monkeypatch.setattr(git_adapter_module.sys, "platform", "linux")
+    monkeypatch.setattr(subprocess_helpers_module.sys, "platform", "linux")
     monkeypatch.setattr(
-        git_adapter_module.subprocess,
+        subprocess_helpers_module.subprocess,
         "CREATE_NO_WINDOW",
         0x08000000,
         raising=False,
