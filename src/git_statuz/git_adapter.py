@@ -4,23 +4,37 @@ import subprocess
 from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 from threep_commons.subprocess_helpers import windows_no_window_run_kwargs
 
 from .models import BranchStatus, CommitEntry, FileStatus, RepoSnapshot, StatusCounts
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 class GitCommandError(RuntimeError):
     """Raised when a git command fails."""
 
 
+def _no_window_run_options() -> tuple[Any | None, int]:
+    run_kwargs = windows_no_window_run_kwargs()
+    startupinfo = run_kwargs.get("startupinfo")
+    raw_creationflags = run_kwargs.get("creationflags", 0)
+    creationflags = raw_creationflags if isinstance(raw_creationflags, int) else 0
+    return startupinfo, creationflags
+
+
 def resolve_repo_root(path: str | Path) -> str:
     path_str = str(path)
-    proc = subprocess.run(
+    startupinfo, creationflags = _no_window_run_options()
+    proc: subprocess.CompletedProcess[bytes] = subprocess.run(
         ["git", "-C", path_str, "rev-parse", "--show-toplevel"],
         capture_output=True,
         check=False,
-        **windows_no_window_run_kwargs(),
+        startupinfo=startupinfo,
+        creationflags=creationflags,
     )
     if proc.returncode != 0:
         stderr = proc.stderr.decode("utf-8", "replace").strip()
@@ -218,28 +232,63 @@ class GitAdapter:
             return None
         return datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
 
+    @overload
     def _run_git(
         self,
-        args: list[str],
+        args: Sequence[str],
+        *,
+        text: Literal[True] = True,
+        check: bool = True,
+    ) -> subprocess.CompletedProcess[str]: ...
+
+    @overload
+    def _run_git(
+        self,
+        args: Sequence[str],
+        *,
+        text: Literal[False],
+        check: bool = True,
+    ) -> subprocess.CompletedProcess[bytes]: ...
+
+    def _run_git(
+        self,
+        args: Sequence[str],
         *,
         text: bool = True,
         check: bool = True,
     ) -> subprocess.CompletedProcess[bytes] | subprocess.CompletedProcess[str]:
-        proc = subprocess.run(
+        startupinfo, creationflags = _no_window_run_options()
+        if text:
+            text_proc = subprocess.run(
+                ["git", "-C", self.repo_root, *args],
+                capture_output=True,
+                check=False,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                startupinfo=startupinfo,
+                creationflags=creationflags,
+            )
+            if check and text_proc.returncode != 0:
+                raise GitCommandError(
+                    text_proc.stderr.strip() or f"git command failed: {' '.join(args)}"
+                )
+            return text_proc
+
+        bytes_proc = subprocess.run(
             ["git", "-C", self.repo_root, *args],
             capture_output=True,
             check=False,
-            text=text,
-            encoding="utf-8" if text else None,
-            errors="replace" if text else None,
-            **windows_no_window_run_kwargs(),
+            text=False,
+            startupinfo=startupinfo,
+            creationflags=creationflags,
         )
-        if check and proc.returncode != 0:
-            stderr = proc.stderr if text else proc.stderr.decode("utf-8", "replace")
+        if check and bytes_proc.returncode != 0:
             raise GitCommandError(
-                stderr.strip() or f"git command failed: {' '.join(args)}"
+                bytes_proc.stderr.decode("utf-8", "replace").strip()
+                or f"git command failed: {' '.join(args)}"
             )
-        return proc
+        return bytes_proc
 
     def has_head(self) -> bool:
         proc = self._run_git(["rev-parse", "--verify", "HEAD"], text=True, check=False)

@@ -362,11 +362,7 @@ class MainWindow(QMainWindow):
         self.collapse_1_button.clicked.connect(lambda: self._adjust_tree_depth(-1))
         self.collapse_2_button.clicked.connect(lambda: self._adjust_tree_depth(-2))
         for tag, checkbox in self._status_filter_checkboxes.items():
-            checkbox.toggled.connect(
-                lambda checked, status_tag=tag: self._handle_status_filter_toggled(
-                    status_tag, checked
-                )
-            )
+            checkbox.toggled.connect(self._make_status_filter_toggle_handler(tag))
         self.tree_view.header().sectionResized.connect(self._save_tree_column_widths)
         self.history_view.horizontalHeader().sectionResized.connect(
             self._save_history_column_widths
@@ -552,6 +548,12 @@ class MainWindow(QMainWindow):
         checkbox.setChecked(self._status_filter_enabled[tag])
         self._status_filter_checkboxes[tag] = checkbox
         return checkbox
+
+    def _make_status_filter_toggle_handler(self, tag: str) -> Callable[[bool], None]:
+        def _handle_toggle(checked: bool) -> None:
+            self._handle_status_filter_toggled(tag, checked)
+
+        return _handle_toggle
 
     def _refresh_after_filter_toggle(self) -> None:
         if self._snapshot is None:
