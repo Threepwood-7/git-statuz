@@ -152,7 +152,7 @@ indent-style = "space"
 docstring-code-format = true
 
 [tool.deptry]
-known_first_party = ["git_statuz"]
+known_first_party = ["git_statuz", "_common"]
 
 [tool.basedpyright]
 pythonVersion = "3.13"
