@@ -112,12 +112,9 @@ select = [
   "TCH",
   "RUF",
 ]
-external = ["C901"]
-ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*" = ["S101", "S105", "S106"]
-"src/git_statuz/git_adapter.py" = ["C901"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["git_statuz"]
@@ -134,6 +131,7 @@ ignore-names = [
   "drawForeground",
   "drawInlineImage",
   "dropEvent",
+  "enterEvent",
   "eventFilter",
   "filePath",
   "filterAcceptsRow",
@@ -146,8 +144,10 @@ ignore-names = [
   "leaveEvent",
   "mouseDoubleClickEvent",
   "mouseMoveEvent",
+  "mousePressEvent",
   "mouseReleaseEvent",
   "moveEvent",
+  "nameFilterDisables",
   "nameFilters",
   "paintEvent",
   "rowCount",
@@ -188,39 +188,6 @@ known_first_party = ["git_statuz", "_common"]
 pythonVersion = "3.13"
 pythonPlatform = "All"
 typeCheckingMode = "strict"
-# Keep strict mode enabled while suppressing the current application-level
-# backlog of noisy diagnostics that would otherwise block rollout validation.
-reportArgumentType = "none"
-reportAssignmentType = "none"
-reportAttributeAccessIssue = "none"
-reportCallIssue = "none"
-reportConstantRedefinition = "none"
-reportGeneralTypeIssues = "none"
-reportIncompatibleMethodOverride = "none"
-reportIncompatibleVariableOverride = "none"
-reportIndexIssue = "none"
-reportInvalidTypeForm = "none"
-reportMissingImports = "none"
-reportMissingParameterType = "none"
-reportMissingTypeArgument = "none"
-reportMissingTypeStubs = "none"
-reportOptionalMemberAccess = "none"
-reportOptionalOperand = "none"
-reportOptionalSubscript = "none"
-reportPossiblyUnboundVariable = "none"
-reportPrivateImportUsage = "none"
-reportPrivateUsage = "none"
-reportRedeclaration = "none"
-reportReturnType = "none"
-reportUnknownArgumentType = "none"
-reportUnknownLambdaType = "none"
-reportUnknownMemberType = "none"
-reportUnknownParameterType = "none"
-reportUnknownVariableType = "none"
-reportUnnecessaryCast = "none"
-reportUnnecessaryComparison = "none"
-reportUnnecessaryIsInstance = "none"
-reportUnusedFunction = "none"
 venvPath = "."
 venv = ".venv"
 include = ["src"]

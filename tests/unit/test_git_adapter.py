@@ -113,7 +113,10 @@ def test_parse_status_porcelain_v2_covers_core_states() -> None:
         "1 D. N... 100644 100644 100644 aaaaaaa bbbbbbb src/deleted.txt",
         "2 R. N... 100644 100644 100644 aaaaaaa bbbbbbb R100 src/new_name.txt",
         "src/old_name.txt",
-        "u UU N... 100644 100644 100644 100644 aaaaaaa bbbbbbb ccccccc src/conflict.txt",
+        (
+            "u UU N... 100644 100644 100644 100644 aaaaaaa bbbbbbb ccccccc "
+            "src/conflict.txt"
+        ),
         "? src/untracked.txt",
         "! src/ignored.log",
     ]

@@ -76,6 +76,105 @@ def _make_tracked_file_status(
     )
 
 
+def _parse_branch_ahead_behind(suffix: str) -> tuple[int, int]:
+    parts = suffix.split(" ")
+    if len(parts) != 2:
+        return 0, 0
+    try:
+        return int(parts[0].lstrip("+")), int(parts[1].lstrip("-"))
+    except ValueError:
+        return 0, 0
+
+
+def _parse_branch_header(
+    entry: str,
+    branch_name: str,
+    is_detached: bool,
+    upstream: str | None,
+    ahead: int,
+    behind: int,
+) -> tuple[str, bool, str | None, int, int]:
+    if entry.startswith("# branch.head "):
+        branch_value = entry[len("# branch.head ") :]
+        if branch_value == "(detached)":
+            return "DETACHED", True, upstream, ahead, behind
+        return branch_value, False, upstream, ahead, behind
+    if entry.startswith("# branch.upstream "):
+        return (
+            branch_name,
+            is_detached,
+            entry[len("# branch.upstream ") :],
+            ahead,
+            behind,
+        )
+    if entry.startswith("# branch.ab "):
+        ahead, behind = _parse_branch_ahead_behind(entry[len("# branch.ab ") :])
+    return branch_name, is_detached, upstream, ahead, behind
+
+
+def _make_untracked_or_ignored_file_status(
+    repo_relpath: str,
+    *,
+    ignored: bool,
+) -> FileStatus:
+    return FileStatus(
+        repo_relpath=repo_relpath,
+        is_tracked=False,
+        is_untracked=not ignored,
+        is_ignored=ignored,
+        is_staged=False,
+        is_unstaged=False,
+        is_conflicted=False,
+        is_deleted=False,
+        is_renamed=False,
+    )
+
+
+def _append_status_entry(
+    entries: Sequence[bytes],
+    index: int,
+    entry: str,
+    file_statuses: list[FileStatus],
+) -> int:
+    record_type = entry[:1]
+    if record_type == "1":
+        parts = entry.split(" ", 8)
+        if len(parts) >= 9:
+            file_statuses.append(_make_tracked_file_status(parts[8], parts[1]))
+        return index
+
+    if record_type == "2":
+        parts = entry.split(" ", 9)
+        if len(parts) < 10:
+            return index
+        if index < len(entries):
+            index += 1
+        file_statuses.append(
+            _make_tracked_file_status(parts[9], parts[1], renamed=True)
+        )
+        return index
+
+    if record_type == "u":
+        parts = entry.split(" ", 10)
+        if len(parts) >= 11:
+            file_statuses.append(
+                _make_tracked_file_status(parts[10], parts[1], conflicted=True)
+            )
+        return index
+
+    if record_type == "?":
+        path = entry[2:] if entry.startswith("? ") else entry[1:].lstrip()
+        file_statuses.append(
+            _make_untracked_or_ignored_file_status(path, ignored=False)
+        )
+        return index
+
+    if record_type == "!":
+        path = entry[2:] if entry.startswith("! ") else entry[1:].lstrip()
+        file_statuses.append(_make_untracked_or_ignored_file_status(path, ignored=True))
+    return index
+
+
 def parse_status_porcelain_v2(
     payload: bytes,
 ) -> tuple[BranchStatus, list[FileStatus]]:
@@ -96,83 +195,17 @@ def parse_status_porcelain_v2(
 
         entry = raw_entry.decode("utf-8", "surrogateescape")
         if entry.startswith("# "):
-            if entry.startswith("# branch.head "):
-                branch_value = entry[len("# branch.head ") :]
-                if branch_value == "(detached)":
-                    branch_name = "DETACHED"
-                    is_detached = True
-                else:
-                    branch_name = branch_value
-                    is_detached = False
-            elif entry.startswith("# branch.upstream "):
-                upstream = entry[len("# branch.upstream ") :]
-            elif entry.startswith("# branch.ab "):
-                suffix = entry[len("# branch.ab ") :]
-                parts = suffix.split(" ")
-                if len(parts) == 2:
-                    try:
-                        ahead = int(parts[0].lstrip("+"))
-                        behind = int(parts[1].lstrip("-"))
-                    except ValueError:
-                        ahead = 0
-                        behind = 0
+            branch_name, is_detached, upstream, ahead, behind = _parse_branch_header(
+                entry,
+                branch_name,
+                is_detached,
+                upstream,
+                ahead,
+                behind,
+            )
             continue
 
-        record_type = entry[:1]
-        if record_type == "1":
-            parts = entry.split(" ", 8)
-            if len(parts) < 9:
-                continue
-            xy = parts[1]
-            path = parts[8]
-            file_statuses.append(_make_tracked_file_status(path, xy))
-        elif record_type == "2":
-            parts = entry.split(" ", 9)
-            if len(parts) < 10:
-                continue
-            xy = parts[1]
-            path = parts[9]
-            # Renamed/copied records in -z format have the original path in the next entry.
-            if i < len(entries):
-                i += 1
-            file_statuses.append(_make_tracked_file_status(path, xy, renamed=True))
-        elif record_type == "u":
-            parts = entry.split(" ", 10)
-            if len(parts) < 11:
-                continue
-            xy = parts[1]
-            path = parts[10]
-            file_statuses.append(_make_tracked_file_status(path, xy, conflicted=True))
-        elif record_type == "?":
-            path = entry[2:] if entry.startswith("? ") else entry[1:].lstrip()
-            file_statuses.append(
-                FileStatus(
-                    repo_relpath=path,
-                    is_tracked=False,
-                    is_untracked=True,
-                    is_ignored=False,
-                    is_staged=False,
-                    is_unstaged=False,
-                    is_conflicted=False,
-                    is_deleted=False,
-                    is_renamed=False,
-                )
-            )
-        elif record_type == "!":
-            path = entry[2:] if entry.startswith("! ") else entry[1:].lstrip()
-            file_statuses.append(
-                FileStatus(
-                    repo_relpath=path,
-                    is_tracked=False,
-                    is_untracked=False,
-                    is_ignored=True,
-                    is_staged=False,
-                    is_unstaged=False,
-                    is_conflicted=False,
-                    is_deleted=False,
-                    is_renamed=False,
-                )
-            )
+        i = _append_status_entry(entries, i, entry, file_statuses)
 
     branch_status = BranchStatus(
         branch_name=branch_name,
@@ -463,7 +496,10 @@ class GitAdapter:
                 hex_body = payload.hex()
                 preview = f"Binary file preview (hex):\n{hex_body}"
                 if truncated:
-                    preview = f"{preview}\n\n[Preview truncated at {max_binary_bytes} bytes before hex conversion]"
+                    preview = (
+                        f"{preview}\n\n[Preview truncated at {max_binary_bytes} "
+                        "bytes before hex conversion]"
+                    )
                 return preview
 
             payload = handle.read(max_text_bytes + 1)

@@ -437,9 +437,10 @@ class MainWindow(QMainWindow):
         self._history_context = "repo"
         self.history_context_changed.emit("repo")
 
+        upstream_name = result.branch_status.upstream or "none"
         self.branch_label.setText(
             "branch: "
-            f"{result.branch_status.branch_name} | upstream: {result.branch_status.upstream or 'none'} | "
+            f"{result.branch_status.branch_name} | upstream: {upstream_name} | "
             f"ahead {result.branch_status.ahead} / behind {result.branch_status.behind}"
         )
         self.counts_label.setText(
