@@ -2,36 +2,26 @@ from __future__ import annotations
 
 import atexit
 import contextlib
-import os
-import shutil
 import subprocess
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from threep_commons.executables import find_first_available_executable, program_files_candidates
+from threep_commons.files import open_path_in_default_app
+
 if TYPE_CHECKING:
     from ..git_adapter import GitAdapter
-    from ..models import FileStatus
+from ..models import FileStatus
 
 
 def resolve_winmerge_path(preferred_path: str | None = None) -> str | None:
-    if preferred_path:
-        preferred = Path(preferred_path)
-        if preferred.exists():
-            return str(preferred)
-
-    in_path = shutil.which("WinMergeU.exe") or shutil.which("WinMergeU")
-    if in_path:
-        return in_path
-
-    default_paths = [
-        Path(r"C:\Program Files\WinMerge\WinMergeU.exe"),
-        Path(r"C:\Program Files (x86)\WinMerge\WinMergeU.exe"),
-    ]
-    for candidate in default_paths:
-        if candidate.exists():
-            return str(candidate)
-    return None
+    resolved = find_first_available_executable(
+        preferred=preferred_path,
+        command_names=("WinMergeU.exe", "WinMergeU"),
+        candidate_paths=program_files_candidates(Path("WinMerge") / "WinMergeU.exe"),
+    )
+    return str(resolved) if resolved is not None else None
 
 
 class DiffLauncher:
@@ -59,11 +49,7 @@ class DiffLauncher:
     def _open_default_editor(self, file_path: Path) -> None:
         if not file_path.exists():
             raise RuntimeError(f"Working-tree file does not exist: {file_path}")
-        if hasattr(os, "startfile"):
-            os.startfile(str(file_path))  # type: ignore[attr-defined]
-            return
-        if os.name == "posix":
-            subprocess.Popen(["xdg-open", str(file_path)])
+        if open_path_in_default_app(file_path):
             return
         raise RuntimeError("Unable to open default editor on this platform.")
 

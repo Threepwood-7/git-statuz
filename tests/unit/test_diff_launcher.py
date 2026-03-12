@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-import os
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from git_statuz.models import FileStatus
 from git_statuz.services import diff_launcher
 from git_statuz.services.diff_launcher import DiffLauncher, resolve_winmerge_path
-
-if TYPE_CHECKING:
-    from pathlib import Path
-
 
 class _DummyGitAdapter:
     def has_head(self) -> bool:
@@ -42,6 +38,16 @@ def test_resolve_winmerge_path_uses_explicit(tmp_path: Path) -> None:
     assert resolve_winmerge_path(str(exe)) == str(exe)
 
 
+def test_resolve_winmerge_path_uses_common_resolution(monkeypatch) -> None:
+    monkeypatch.setattr(
+        diff_launcher,
+        "find_first_available_executable",
+        lambda **_kwargs: Path(r"C:\Tools\WinMergeU.exe"),
+    )
+
+    assert resolve_winmerge_path() == r"C:\Tools\WinMergeU.exe"
+
+
 def test_open_untracked_uses_default_editor(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(
         diff_launcher, "resolve_winmerge_path", lambda preferred_path=None: None
@@ -51,9 +57,9 @@ def test_open_untracked_uses_default_editor(monkeypatch, tmp_path: Path) -> None
     file_path = repo / "new.txt"
     file_path.write_text("new", encoding="utf-8")
 
-    opened: list[str] = []
+    opened: list[Path] = []
     monkeypatch.setattr(
-        os, "startfile", lambda path: opened.append(path), raising=False
+        diff_launcher, "open_path_in_default_app", lambda path: opened.append(Path(path)) or True
     )
 
     launcher = DiffLauncher(str(repo))
@@ -61,7 +67,7 @@ def test_open_untracked_uses_default_editor(monkeypatch, tmp_path: Path) -> None
         _file_status("new.txt", tracked=False, untracked=True), _DummyGitAdapter()
     )
 
-    assert opened == [str(file_path)]
+    assert opened == [file_path]
 
 
 def test_open_tracked_uses_winmerge(monkeypatch, tmp_path: Path) -> None:
@@ -98,9 +104,9 @@ def test_open_tracked_without_winmerge_falls_back_to_editor(
     file_path = repo / "tracked.txt"
     file_path.write_text("working tree\n", encoding="utf-8")
 
-    opened: list[str] = []
+    opened: list[Path] = []
     monkeypatch.setattr(
-        os, "startfile", lambda path: opened.append(path), raising=False
+        diff_launcher, "open_path_in_default_app", lambda path: opened.append(Path(path)) or True
     )
 
     launcher = DiffLauncher(str(repo))
@@ -108,4 +114,4 @@ def test_open_tracked_without_winmerge_falls_back_to_editor(
         _file_status("tracked.txt", tracked=True), _DummyGitAdapter()
     )
 
-    assert opened == [str(file_path)]
+    assert opened == [file_path]
