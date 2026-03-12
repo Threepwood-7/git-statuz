@@ -9,7 +9,6 @@ from PySide6.QtCore import (
     QObject,
     QProcess,
     QRunnable,
-    QSettings,
     Qt,
     QThreadPool,
     Signal,
@@ -32,8 +31,9 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from threep_commons.settings import QSettingsValueStore
 
-from ..constants import SETTINGS_APP_NAME, SETTINGS_ORG_NAME
+from ..constants import APP_IDENTITY
 from ..git_adapter import GitAdapter, GitCommandError, resolve_repo_root
 from ..models import CommitEntry, FileStatus, HistoryContext, RepoSnapshot
 from ..services.diff_launcher import DiffLauncher
@@ -166,18 +166,13 @@ class MainWindow(QMainWindow):
         repo_root: str,
         winmerge_path: str | None = None,
         history_limit: int = 30,
-        settings: QSettings | None = None,
+        settings: QSettingsValueStore | None = None,
     ) -> None:
         super().__init__()
         self.repo_root = Path(repo_root)
         self._history_limit = history_limit
         self._winmerge_path = winmerge_path
-        self._settings = settings or QSettings(
-            QSettings.Format.IniFormat,
-            QSettings.Scope.UserScope,
-            SETTINGS_ORG_NAME,
-            SETTINGS_APP_NAME,
-        )
+        self._settings = settings or QSettingsValueStore.from_identity(APP_IDENTITY)
         self._recent_paths = load_recent_paths(
             self._settings.value(SETTINGS_RECENT_PATHS_KEY, []),
             limit=MAX_RECENT_PATHS,
@@ -543,7 +538,7 @@ class MainWindow(QMainWindow):
 
     def _handle_status_filter_toggled(self, tag: str, checked: bool) -> None:
         self._status_filter_enabled[tag] = checked
-        self._settings.setValue(STATUS_FILTER_SETTINGS_KEYS[tag], checked)
+        self._settings.set_value(STATUS_FILTER_SETTINGS_KEYS[tag], checked)
         self._refresh_after_filter_toggle()
 
     def _load_status_filter_settings(self) -> dict[str, bool]:
@@ -781,13 +776,13 @@ class MainWindow(QMainWindow):
         self._recent_paths = update_recent_paths(
             self._recent_paths, path, limit=MAX_RECENT_PATHS
         )
-        self._settings.setValue(SETTINGS_RECENT_PATHS_KEY, self._recent_paths)
+        self._settings.set_value(SETTINGS_RECENT_PATHS_KEY, self._recent_paths)
         if hasattr(self, "_recent_menu"):
             self._rebuild_recent_menu()
 
     def _drop_recent_path(self, path: str) -> None:
         self._recent_paths = drop_recent_path(self._recent_paths, path)
-        self._settings.setValue(SETTINGS_RECENT_PATHS_KEY, self._recent_paths)
+        self._settings.set_value(SETTINGS_RECENT_PATHS_KEY, self._recent_paths)
         self._rebuild_recent_menu()
 
     def _rebuild_recent_menu(self) -> None:
@@ -870,19 +865,19 @@ class MainWindow(QMainWindow):
 
     def _save_tree_column_widths(self, *_args: object) -> None:
         widths = [self.tree_view.columnWidth(index) for index in range(3)]
-        self._settings.setValue(SETTINGS_TREE_WIDTHS_KEY, widths)
+        self._settings.set_value(SETTINGS_TREE_WIDTHS_KEY, widths)
 
     def _save_history_column_widths(self, *_args: object) -> None:
         widths = [self.history_view.columnWidth(index) for index in range(4)]
-        self._settings.setValue(SETTINGS_HISTORY_WIDTHS_KEY, widths)
+        self._settings.set_value(SETTINGS_HISTORY_WIDTHS_KEY, widths)
 
     def _save_splitter_sizes(self, *_args: object) -> None:
         if self._main_splitter is not None:
-            self._settings.setValue(
+            self._settings.set_value(
                 SETTINGS_MAIN_SPLITTER_SIZES_KEY, self._main_splitter.sizes()
             )
         if self._right_splitter is not None:
-            self._settings.setValue(
+            self._settings.set_value(
                 SETTINGS_RIGHT_SPLITTER_SIZES_KEY, self._right_splitter.sizes()
             )
 
@@ -925,6 +920,6 @@ class MainWindow(QMainWindow):
         self._save_history_column_widths()
         self._save_splitter_sizes()
         for tag, enabled in self._status_filter_enabled.items():
-            self._settings.setValue(STATUS_FILTER_SETTINGS_KEYS[tag], enabled)
+            self._settings.set_value(STATUS_FILTER_SETTINGS_KEYS[tag], enabled)
         self._settings.sync()
         super().closeEvent(event)

@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import QFileDialog, QMessageBox
+from threep_commons.settings import QSettingsValueStore
 
 from git_statuz.git_adapter import GitAdapter
 from git_statuz.models import (
@@ -20,6 +21,10 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+def _settings_store(path: Path) -> QSettingsValueStore:
+    return QSettingsValueStore(QSettings(str(path), QSettings.Format.IniFormat))
+
+
 def test_repo_history_limit_30(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     for i in range(35):
@@ -34,7 +39,7 @@ def test_menu_bar_includes_core_file_view_help_actions(
     qtbot, tmp_path: Path, monkeypatch
 ) -> None:
     monkeypatch.setattr(MainWindow, "refresh", lambda self: None)
-    settings = QSettings(str(tmp_path / "window.ini"), QSettings.Format.IniFormat)
+    settings = _settings_store(tmp_path / "window.ini")
     window = MainWindow(str(tmp_path), settings=settings)
     qtbot.addWidget(window)
 
@@ -75,7 +80,7 @@ def test_recent_paths_escape_ampersand_in_menu_labels(
     qtbot, tmp_path: Path, monkeypatch
 ) -> None:
     monkeypatch.setattr(MainWindow, "refresh", lambda self: None)
-    settings = QSettings(str(tmp_path / "window.ini"), QSettings.Format.IniFormat)
+    settings = _settings_store(tmp_path / "window.ini")
     window = MainWindow(str(tmp_path), settings=settings)
     qtbot.addWidget(window)
 
@@ -89,7 +94,7 @@ def test_main_window_switches_history_by_file_selection(
     qtbot, tmp_path: Path, monkeypatch
 ) -> None:
     monkeypatch.setattr(MainWindow, "refresh", lambda self: None)
-    settings = QSettings(str(tmp_path / "window.ini"), QSettings.Format.IniFormat)
+    settings = _settings_store(tmp_path / "window.ini")
     window = MainWindow(str(tmp_path), settings=settings)
     qtbot.addWidget(window)
 
@@ -202,7 +207,7 @@ def test_status_filter_checkboxes_cover_all_file_statuses(
 ) -> None:
     monkeypatch.setattr(MainWindow, "refresh", lambda self: None)
     monkeypatch.setattr(MainWindow, "_request_repo_diff", lambda self: None)
-    settings = QSettings(str(tmp_path / "window.ini"), QSettings.Format.IniFormat)
+    settings = _settings_store(tmp_path / "window.ini")
     window = MainWindow(str(tmp_path), settings=settings)
     qtbot.addWidget(window)
 
@@ -410,7 +415,7 @@ def test_prompt_open_directory_reprompts_for_non_git_selection(
     qtbot, tmp_path: Path, monkeypatch
 ) -> None:
     monkeypatch.setattr(MainWindow, "refresh", lambda self: None)
-    settings = QSettings(str(tmp_path / "window.ini"), QSettings.Format.IniFormat)
+    settings = _settings_store(tmp_path / "window.ini")
     window = MainWindow(str(tmp_path), settings=settings)
     qtbot.addWidget(window)
 
