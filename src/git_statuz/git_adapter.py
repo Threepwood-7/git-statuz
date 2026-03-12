@@ -76,7 +76,7 @@ def _make_tracked_file_status(
     )
 
 
-def parse_status_porcelain_v2(  # noqa: C901 - parser mirrors git porcelain v2 state handling
+def parse_status_porcelain_v2(
     payload: bytes,
 ) -> tuple[BranchStatus, list[FileStatus]]:
     branch_name = "UNKNOWN"
