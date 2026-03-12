@@ -13,6 +13,7 @@ from .models import BranchStatus, CommitEntry, FileStatus, RepoSnapshot, StatusC
 class GitCommandError(RuntimeError):
     """Raised when a git command fails."""
 
+
 def resolve_repo_root(path: str | Path) -> str:
     path_str = str(path)
     proc = subprocess.run(

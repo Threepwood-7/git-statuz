@@ -3,13 +3,14 @@ from __future__ import annotations
 import subprocess
 from typing import TYPE_CHECKING
 
+import threep_commons.subprocess_helpers as subprocess_helpers_module
+
 from git_statuz import git_adapter as git_adapter_module
 from git_statuz.git_adapter import (
     GitAdapter,
     parse_commit_log,
     parse_status_porcelain_v2,
 )
-import threep_commons.subprocess_helpers as subprocess_helpers_module
 from tests.conftest import commit_file, init_repo, run_git
 
 if TYPE_CHECKING:
@@ -20,7 +21,9 @@ def test_resolve_repo_root_uses_create_no_window_on_windows(monkeypatch) -> None
     captured_kwargs: dict[str, object] = {}
     creation_flag = 0x08000000
 
-    def fake_run(cmd: list[str], **kwargs: object) -> subprocess.CompletedProcess[bytes]:
+    def fake_run(
+        cmd: list[str], **kwargs: object
+    ) -> subprocess.CompletedProcess[bytes]:
         captured_kwargs.update(kwargs)
         return subprocess.CompletedProcess(
             args=cmd,

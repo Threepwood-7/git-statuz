@@ -482,9 +482,7 @@ class MainWindow(QMainWindow):
         if self._snapshot is None:
             return []
         enabled_statuses = {
-            tag
-            for tag, enabled in self._status_filter_enabled.items()
-            if enabled
+            tag for tag, enabled in self._status_filter_enabled.items() if enabled
         }
         if not enabled_statuses:
             return []

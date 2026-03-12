@@ -350,7 +350,9 @@ def test_status_filter_checkboxes_cover_all_file_statuses(
         )
         if ignored_item is None:
             return []
-        return [ignored_item.child(row, 0).text() for row in range(ignored_item.rowCount())]
+        return [
+            ignored_item.child(row, 0).text() for row in range(ignored_item.rowCount())
+        ]
 
     window._handle_snapshot_loaded(snapshot)
     names = root_names()

@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import argparse
 import sys
+import winreg
 from dataclasses import dataclass
 from pathlib import Path
-
-import winreg
 
 MENU_LABEL = "Open with GitStatuz"
 MENU_ICON = r"%SystemRoot%\System32\shell32.dll,-4"
@@ -40,7 +39,9 @@ def command_value(launcher: Path, path_placeholder: str) -> str:
 
 
 def create_menu_entry(launcher: Path, target: MenuTarget) -> None:
-    with winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER, target.key_path, 0, winreg.KEY_SET_VALUE) as key:
+    with winreg.CreateKeyEx(
+        winreg.HKEY_CURRENT_USER, target.key_path, 0, winreg.KEY_SET_VALUE
+    ) as key:
         winreg.SetValueEx(key, None, 0, winreg.REG_SZ, MENU_LABEL)
         winreg.SetValueEx(key, "Icon", 0, winreg.REG_SZ, MENU_ICON)
 
@@ -87,7 +88,9 @@ def install() -> int:
         for target in TARGETS:
             create_menu_entry(launcher, target)
     except OSError as exc:
-        print(f"ERROR: failed to write Explorer context menu keys: {exc}", file=sys.stderr)
+        print(
+            f"ERROR: failed to write Explorer context menu keys: {exc}", file=sys.stderr
+        )
         return 1
 
     print("Explorer context menu installed for folder item and folder background.")
@@ -99,7 +102,10 @@ def uninstall() -> int:
         for target in TARGETS:
             delete_tree(winreg.HKEY_CURRENT_USER, target.key_path)
     except OSError as exc:
-        print(f"ERROR: failed to remove Explorer context menu keys: {exc}", file=sys.stderr)
+        print(
+            f"ERROR: failed to remove Explorer context menu keys: {exc}",
+            file=sys.stderr,
+        )
         return 1
 
     print("Explorer context menu removed.")

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from git_statuz.models import FileStatus
 from git_statuz.services import diff_launcher
 from git_statuz.services.diff_launcher import DiffLauncher, resolve_winmerge_path
+
 
 class _DummyGitAdapter:
     def has_head(self) -> bool:
@@ -59,7 +59,9 @@ def test_open_untracked_uses_default_editor(monkeypatch, tmp_path: Path) -> None
 
     opened: list[Path] = []
     monkeypatch.setattr(
-        diff_launcher, "open_path_in_default_app", lambda path: opened.append(Path(path)) or True
+        diff_launcher,
+        "open_path_in_default_app",
+        lambda path: opened.append(Path(path)) or True,
     )
 
     launcher = DiffLauncher(str(repo))
@@ -106,7 +108,9 @@ def test_open_tracked_without_winmerge_falls_back_to_editor(
 
     opened: list[Path] = []
     monkeypatch.setattr(
-        diff_launcher, "open_path_in_default_app", lambda path: opened.append(Path(path)) or True
+        diff_launcher,
+        "open_path_in_default_app",
+        lambda path: opened.append(Path(path)) or True,
     )
 
     launcher = DiffLauncher(str(repo))

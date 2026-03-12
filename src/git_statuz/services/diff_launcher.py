@@ -8,11 +8,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from threep_commons.desktop import open_path_in_default_app
-from threep_commons.executables import find_first_available_executable, program_files_candidates
+from threep_commons.executables import (
+    find_first_available_executable,
+    program_files_candidates,
+)
 
 if TYPE_CHECKING:
     from ..git_adapter import GitAdapter
-from ..models import FileStatus
+    from ..models import FileStatus
 
 
 def resolve_winmerge_path(preferred_path: str | None = None) -> str | None:
