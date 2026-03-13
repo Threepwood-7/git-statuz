@@ -188,8 +188,6 @@ known_first_party = ["git_statuz", "_common"]
 pythonVersion = "3.13"
 pythonPlatform = "All"
 typeCheckingMode = "strict"
-venvPath = "."
-venv = ".venv"
 include = ["src"]
 exclude = ["tests", "**/__pycache__"]
 
