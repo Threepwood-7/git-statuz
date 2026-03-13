@@ -1,3 +1,5 @@
+"""Recent-path persistence helpers for the desktop UI."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -10,6 +12,7 @@ MAX_RECENT_PATHS = 10
 def update_recent_paths(
     paths: list[str], new_path: str, limit: int = MAX_RECENT_PATHS
 ) -> list[str]:
+    """Insert a path at the front of the recent list with normalization."""
     normalized_new = str(Path(new_path).resolve())
     deduped = [normalized_new]
     for existing in paths:
@@ -20,6 +23,7 @@ def update_recent_paths(
 
 
 def load_recent_paths(raw_value: object, limit: int = MAX_RECENT_PATHS) -> list[str]:
+    """Normalize persisted settings data into a bounded recent-path list."""
     if isinstance(raw_value, str):
         raw_paths = [raw_value] if raw_value else []
     elif isinstance(raw_value, list):
@@ -40,5 +44,6 @@ def load_recent_paths(raw_value: object, limit: int = MAX_RECENT_PATHS) -> list[
 
 
 def drop_recent_path(paths: list[str], path: str) -> list[str]:
+    """Remove a normalized path from the recent-path list."""
     normalized = str(Path(path).resolve())
     return [entry for entry in paths if entry != normalized]

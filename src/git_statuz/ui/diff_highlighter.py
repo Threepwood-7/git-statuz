@@ -1,3 +1,5 @@
+"""Syntax highlighting helpers for Git diff and preview text."""
+
 from __future__ import annotations
 
 from PySide6.QtGui import (
@@ -10,6 +12,8 @@ from PySide6.QtGui import (
 
 
 class GitDiffHighlighter(QSyntaxHighlighter):
+    """Apply lightweight color formatting to Git diff previews."""
+
     def __init__(self, parent: QTextDocument) -> None:
         super().__init__(parent)
         self._format_header = QTextCharFormat()

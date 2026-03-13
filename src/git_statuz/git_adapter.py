@@ -1,10 +1,12 @@
+"""Git command helpers and parsing utilities for GitStatuz."""
+
 from __future__ import annotations
 
 import subprocess
 from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Literal, overload
 
 from threep_commons.subprocess_helpers import windows_no_window_run_kwargs
 
@@ -18,24 +20,31 @@ class GitCommandError(RuntimeError):
     """Raised when a git command fails."""
 
 
-def _no_window_run_options() -> tuple[Any | None, int]:
-    run_kwargs = windows_no_window_run_kwargs()
-    startupinfo = run_kwargs.get("startupinfo")
-    raw_creationflags = run_kwargs.get("creationflags", 0)
-    creationflags = raw_creationflags if isinstance(raw_creationflags, int) else 0
-    return startupinfo, creationflags
+def _no_window_creationflags() -> int | None:
+    """Return the optional Windows no-console creation flag for git commands."""
+    raw_creationflags = windows_no_window_run_kwargs().get("creationflags")
+    if isinstance(raw_creationflags, int) and raw_creationflags:
+        return raw_creationflags
+    return None
 
 
 def resolve_repo_root(path: str | Path) -> str:
+    """Resolve a path inside a worktree to the repository top-level directory."""
     path_str = str(path)
-    startupinfo, creationflags = _no_window_run_options()
-    proc: subprocess.CompletedProcess[bytes] = subprocess.run(
-        ["git", "-C", path_str, "rev-parse", "--show-toplevel"],
-        capture_output=True,
-        check=False,
-        startupinfo=startupinfo,
-        creationflags=creationflags,
-    )
+    creationflags = _no_window_creationflags()
+    if creationflags is None:
+        proc: subprocess.CompletedProcess[bytes] = subprocess.run(
+            ["git", "-C", path_str, "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            check=False,
+        )
+    else:
+        proc = subprocess.run(
+            ["git", "-C", path_str, "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            check=False,
+            creationflags=creationflags,
+        )
     if proc.returncode != 0:
         stderr = proc.stderr.decode("utf-8", "replace").strip()
         raise GitCommandError(
@@ -178,6 +187,7 @@ def _append_status_entry(
 def parse_status_porcelain_v2(
     payload: bytes,
 ) -> tuple[BranchStatus, list[FileStatus]]:
+    """Parse `git status --porcelain=v2 -z --branch` output."""
     branch_name = "UNKNOWN"
     is_detached = False
     upstream: str | None = None
@@ -218,6 +228,7 @@ def parse_status_porcelain_v2(
 
 
 def parse_commit_log(payload: str) -> list[CommitEntry]:
+    """Parse the custom-delimited commit log payload into table entries."""
     commits: list[CommitEntry] = []
     for raw_line in payload.splitlines():
         if not raw_line:
@@ -251,6 +262,8 @@ def _compose_diff_output(
 
 
 class GitAdapter:
+    """Load repository snapshots, diffs, and file history through Git commands."""
+
     def __init__(self, repo_root: str, history_limit: int = 30) -> None:
         self.repo_root = repo_root
         self.history_limit = history_limit
@@ -292,32 +305,48 @@ class GitAdapter:
         text: bool = True,
         check: bool = True,
     ) -> subprocess.CompletedProcess[bytes] | subprocess.CompletedProcess[str]:
-        startupinfo, creationflags = _no_window_run_options()
+        creationflags = _no_window_creationflags()
         if text:
-            text_proc = subprocess.run(
-                ["git", "-C", self.repo_root, *args],
-                capture_output=True,
-                check=False,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                startupinfo=startupinfo,
-                creationflags=creationflags,
-            )
+            if creationflags is None:
+                text_proc: subprocess.CompletedProcess[str] = subprocess.run(
+                    ["git", "-C", self.repo_root, *args],
+                    capture_output=True,
+                    check=False,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                )
+            else:
+                text_proc = subprocess.run(
+                    ["git", "-C", self.repo_root, *args],
+                    capture_output=True,
+                    check=False,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    creationflags=creationflags,
+                )
             if check and text_proc.returncode != 0:
                 raise GitCommandError(
                     text_proc.stderr.strip() or f"git command failed: {' '.join(args)}"
                 )
             return text_proc
 
-        bytes_proc = subprocess.run(
-            ["git", "-C", self.repo_root, *args],
-            capture_output=True,
-            check=False,
-            text=False,
-            startupinfo=startupinfo,
-            creationflags=creationflags,
-        )
+        if creationflags is None:
+            bytes_proc: subprocess.CompletedProcess[bytes] = subprocess.run(
+                ["git", "-C", self.repo_root, *args],
+                capture_output=True,
+                check=False,
+                text=False,
+            )
+        else:
+            bytes_proc = subprocess.run(
+                ["git", "-C", self.repo_root, *args],
+                capture_output=True,
+                check=False,
+                text=False,
+                creationflags=creationflags,
+            )
         if check and bytes_proc.returncode != 0:
             raise GitCommandError(
                 bytes_proc.stderr.decode("utf-8", "replace").strip()

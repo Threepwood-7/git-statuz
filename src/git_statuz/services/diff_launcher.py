@@ -1,3 +1,5 @@
+"""Helpers for opening files or launching external diff tools."""
+
 from __future__ import annotations
 
 import atexit
@@ -19,6 +21,7 @@ if TYPE_CHECKING:
 
 
 def resolve_winmerge_path(preferred_path: str | None = None) -> str | None:
+    """Resolve the preferred or discovered WinMerge executable path."""
     resolved = find_first_available_executable(
         preferred=preferred_path,
         command_names=("WinMergeU.exe", "WinMergeU"),
@@ -28,6 +31,8 @@ def resolve_winmerge_path(preferred_path: str | None = None) -> str | None:
 
 
 class DiffLauncher:
+    """Open files in the default editor or launch WinMerge for comparisons."""
+
     def __init__(self, repo_root: str, winmerge_path: str | None = None) -> None:
         self.repo_root = Path(repo_root)
         self.winmerge_path = resolve_winmerge_path(winmerge_path)

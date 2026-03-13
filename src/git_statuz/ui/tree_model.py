@@ -1,3 +1,5 @@
+"""Tree-model helpers for repository file status presentation."""
+
 from __future__ import annotations
 
 from pathlib import PurePosixPath
@@ -23,6 +25,7 @@ COLOR_IGNORED = QColor("#7F8C8D")
 
 
 def format_status_text(file_status: FileStatus) -> str:
+    """Build the compact status summary text shown in the tree view."""
     parts: list[str] = []
     if file_status.is_tracked:
         parts.append("tracked")
@@ -58,6 +61,7 @@ def format_status_text(file_status: FileStatus) -> str:
 
 
 def status_color(file_status: FileStatus) -> QColor:
+    """Choose the display color for a file status row."""
     if file_status.is_conflicted:
         return COLOR_CONFLICTED
     if file_status.is_unstaged:
@@ -86,6 +90,7 @@ def _set_row_data(
 
 
 def build_tree_model(file_statuses: Sequence[FileStatus]) -> QStandardItemModel:
+    """Build the hierarchical tree model for repository file statuses."""
     model = QStandardItemModel()
     model.setHorizontalHeaderLabels(["Name", "Last Modified", "Status"])
     root = model.invisibleRootItem()
@@ -167,18 +172,21 @@ def _base_index(index: QModelIndex) -> QModelIndex:
 
 
 def index_node_type(index: QModelIndex) -> str | None:
+    """Return the stored node type for a model index."""
     if not index.isValid():
         return None
     return _base_index(index).data(NODE_TYPE_ROLE)
 
 
 def index_repo_relpath(index: QModelIndex) -> str | None:
+    """Return the repository-relative path stored on a model index."""
     if not index.isValid():
         return None
     return _base_index(index).data(REL_PATH_ROLE)
 
 
 def index_file_status(index: QModelIndex) -> FileStatus | None:
+    """Return the file-status payload stored on a model index."""
     if not index.isValid():
         return None
     return _base_index(index).data(FILE_STATUS_ROLE)

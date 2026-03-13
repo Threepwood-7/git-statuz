@@ -1,3 +1,5 @@
+"""Module entry point for launching GitStatuz with ``python -m``."""
+
 from __future__ import annotations
 
 from .cli import main

@@ -1,3 +1,5 @@
+"""Typed data models shared across the GitStatuz application."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -8,6 +10,8 @@ HistoryContext = Literal["repo"] | str
 
 @dataclass(slots=True, frozen=True)
 class BranchStatus:
+    """Branch state reported by Git for the current repository HEAD."""
+
     branch_name: str
     is_detached: bool
     upstream: str | None
@@ -17,6 +21,8 @@ class BranchStatus:
 
 @dataclass(slots=True, frozen=True)
 class FileStatus:
+    """Normalized working-tree status for one repository-relative file."""
+
     repo_relpath: str
     is_tracked: bool
     is_untracked: bool
@@ -31,6 +37,8 @@ class FileStatus:
 
 @dataclass(slots=True, frozen=True)
 class CommitEntry:
+    """One condensed commit-log row used in the history table."""
+
     short_sha: str
     author: str
     date_iso: str
@@ -39,6 +47,8 @@ class CommitEntry:
 
 @dataclass(slots=True, frozen=True)
 class StatusCounts:
+    """Aggregate counts derived from the current repository snapshot."""
+
     staged: int
     unstaged: int
     untracked: int
@@ -48,6 +58,8 @@ class StatusCounts:
 
 @dataclass(slots=True, frozen=True)
 class RepoSnapshot:
+    """Complete repository snapshot used to refresh the main window state."""
+
     branch_status: BranchStatus
     file_statuses: list[FileStatus]
     counts: StatusCounts

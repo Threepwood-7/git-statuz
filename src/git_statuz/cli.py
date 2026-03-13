@@ -1,3 +1,5 @@
+"""Command-line entry helpers for launching the GitStatuz desktop app."""
+
 from __future__ import annotations
 
 import argparse
@@ -13,6 +15,7 @@ from .ui.main_window import MainWindow
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Build the command-line parser for the desktop launcher."""
     parser = argparse.ArgumentParser(
         prog="gitstatuz",
         description="PySide viewer for Git status and history.",
@@ -53,11 +56,13 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def resolve_input_repo(input_path: str | None) -> str:
+    """Resolve the requested input path to a Git repository root."""
     target = input_path or os.getcwd()
     return resolve_repo_root(target)
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Parse arguments, initialize Qt settings, and launch the main window."""
     parser = build_parser()
     args = parser.parse_args(argv)
 

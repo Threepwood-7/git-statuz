@@ -1,3 +1,5 @@
+"""History table model helpers for the main window."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -11,11 +13,15 @@ if TYPE_CHECKING:
 
 
 class HistoryTableModel(QStandardItemModel):
+    """Expose commit history rows in the history table view."""
+
     def __init__(self) -> None:
+        """Initialize the table model with the fixed history columns."""
         super().__init__()
         self.setHorizontalHeaderLabels(["SHA", "Date", "Author", "Subject"])
 
     def set_commits(self, commits: Sequence[CommitEntry]) -> None:
+        """Replace the current table rows with commit entries."""
         self.removeRows(0, self.rowCount())
         for entry in commits:
             self.appendRow(
@@ -28,6 +34,7 @@ class HistoryTableModel(QStandardItemModel):
             )
 
     def set_empty_message(self, message: str) -> None:
+        """Show a single informational row when no history is available."""
         self.removeRows(0, self.rowCount())
         self.appendRow(
             [
