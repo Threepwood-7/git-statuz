@@ -247,10 +247,8 @@ class MainWindowCore(QMainWindow):
 
     def _handle_file_activated(self, repo_relpath: str) -> None: ...
 
-    def _build_ui(self) -> None:
-        """Build all widgets, splitters, menus, and restore persisted UI state."""
-        self.setWindowTitle("GitStatuz")
-        self.resize(1280, 780)
+    def _apply_window_style(self) -> None:
+        """Apply the shared stylesheet for the main window widgets."""
         self.setStyleSheet(
             """
             QMainWindow { background-color: #F4F7FA; }
@@ -270,11 +268,8 @@ class MainWindowCore(QMainWindow):
             """
         )
 
-        root_widget = QWidget()
-        root_layout = QVBoxLayout(root_widget)
-        root_layout.setContentsMargins(10, 10, 10, 10)
-        root_layout.setSpacing(8)
-
+    def _build_top_bar(self) -> QHBoxLayout:
+        """Build the top summary and action bar."""
         top_bar = QHBoxLayout()
         top_bar.setSpacing(10)
 
@@ -301,10 +296,14 @@ class MainWindowCore(QMainWindow):
         top_bar.addWidget(self.collapse_2_button, stretch=0)
         top_bar.addWidget(self.status_label, stretch=2)
         top_bar.addWidget(self.refresh_button, stretch=0)
+        return top_bar
 
+    def _build_filter_row(self) -> QHBoxLayout:
+        """Build the file-status filter checkbox row."""
         filter_row = QHBoxLayout()
         filter_row.setSpacing(8)
         filter_row.addWidget(QLabel("filters:"), stretch=0)
+
         self.show_modified_checkbox = self._create_status_filter_checkbox(
             "modified",
             "Show modified",
@@ -337,6 +336,7 @@ class MainWindowCore(QMainWindow):
             "unchanged",
             "Show unchanged",
         )
+
         filter_row.addWidget(self.show_modified_checkbox, stretch=0)
         filter_row.addWidget(self.show_staged_checkbox, stretch=0)
         filter_row.addWidget(self.show_conflicted_checkbox, stretch=0)
@@ -346,7 +346,10 @@ class MainWindowCore(QMainWindow):
         filter_row.addWidget(self.show_ignored_checkbox, stretch=0)
         filter_row.addWidget(self.show_unchanged_checkbox, stretch=0)
         filter_row.addStretch(1)
+        return filter_row
 
+    def _build_content_splitter(self) -> QSplitter:
+        """Build the main splitter with the tree, history, and diff panes."""
         splitter = QSplitter()
         self._main_splitter = splitter
         self.tree_view = QTreeView()
@@ -397,9 +400,21 @@ class MainWindowCore(QMainWindow):
             QHeaderView.ResizeMode.Interactive
         )
         self.history_view.horizontalHeader().setStretchLastSection(False)
+        return splitter
 
-        root_layout.addLayout(top_bar)
-        root_layout.addLayout(filter_row)
+    def _build_ui(self) -> None:
+        """Build all widgets, splitters, menus, and restore persisted UI state."""
+        self.setWindowTitle("GitStatuz")
+        self.resize(1280, 780)
+        self._apply_window_style()
+
+        root_widget = QWidget()
+        root_layout = QVBoxLayout(root_widget)
+        root_layout.setContentsMargins(10, 10, 10, 10)
+        root_layout.setSpacing(8)
+        root_layout.addLayout(self._build_top_bar())
+        root_layout.addLayout(self._build_filter_row())
+        splitter = self._build_content_splitter()
         root_layout.addWidget(splitter, stretch=1)
 
         self.setCentralWidget(root_widget)
